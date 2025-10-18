@@ -1,4 +1,4 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -10,6 +10,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+//trebuie sa facem tabela in mysql cu admin
 public class Admin {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,13 +31,9 @@ public class Admin {
     @Column(nullable = false)
     private Boolean active = true;
 
-    // Relații cu angajații administrați
+   /* // Relații cu task-urile administrate
     @OneToMany(mappedBy = "admin")
-    private List<Employee> managedEmployees;
-
-    // Relații cu task-urile administrate
-    @OneToMany(mappedBy = "admin")
-    private List<Assignment> managedAssignments;
+    private List<Task> managedTasks;
 
     // Relații cu cererile de concediu gestionate
     @OneToMany(mappedBy = "admin")
@@ -48,5 +45,5 @@ public class Admin {
 
     // Relații cu rapoartele de productivitate
     @OneToMany(mappedBy = "admin")
-    private List<MonthlyReport> reportsGenerated;
+    private List<MonthlyReport> reportsGenerated;*/
 }

@@ -1,13 +1,14 @@
 package com.example.app.managementapi;
 
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootApplication
-@EntityScan(basePackages = "com.example.app.entities") // pachetul unde ai entitățile
-public class ManagementApiApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(ManagementApiApplication.class, args);
+@SpringBootTest// pachetul unde ai entitățile
+ class ManagementApiApplication {
+    @Test
+    void contextLoads() {
     }
 }

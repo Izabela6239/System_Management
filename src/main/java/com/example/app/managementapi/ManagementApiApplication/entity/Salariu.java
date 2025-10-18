@@ -1,4 +1,4 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,8 +15,8 @@ public class Salariu {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "angajat_id")
-    private User angajat;
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     private String luna; // ex: 2025-10
     private Double suma;

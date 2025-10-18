@@ -1,4 +1,4 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,8 +19,8 @@ public class Productivitate {
     private Task task;
 
     @ManyToOne
-    @JoinColumn(name = "angajat_id")
-    private User angajat;
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     private Integer durataRealizata; // în ore
     private Integer nota;

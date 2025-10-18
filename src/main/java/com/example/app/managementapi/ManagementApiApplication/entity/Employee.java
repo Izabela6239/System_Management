@@ -1,5 +1,6 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -38,6 +39,7 @@ public class Employee {
     private List<Assignment> assignments;
 
     @OneToMany(mappedBy = "employee")
+    @JsonManagedReference
     private List<LeaveRequest> leaveRequests;
 
     @OneToMany(mappedBy = "employee")

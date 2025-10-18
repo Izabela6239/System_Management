@@ -1,4 +1,4 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,8 +17,8 @@ public class Concediu {
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "angajat_id")
-    private User angajat;
+    @JoinColumn(name = "employee_id")
+    private Employee employee;
 
     private LocalDate dataStart;
     private LocalDate dataEnd;

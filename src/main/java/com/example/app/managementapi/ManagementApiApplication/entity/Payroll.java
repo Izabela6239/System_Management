@@ -1,4 +1,4 @@
-package entity;
+package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
