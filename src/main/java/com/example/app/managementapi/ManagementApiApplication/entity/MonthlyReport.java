@@ -18,6 +18,10 @@ public class MonthlyReport {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    @ManyToOne
+    @JoinColumn(name = "admin_id") // coloana din tabela task
+    private Admin admin;
+
     private java.time.Year month;
     private Integer totalTasks = 0;
     private Double avgGrade;

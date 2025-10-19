@@ -21,9 +21,10 @@ public class LeaveRequest {
     @JsonBackReference
     private Employee employee;
 
-    /*@ManyToOne
+    @ManyToOne
     @JoinColumn(name = "admin_id") // <-- adăugat
-    private Admin admin;*/
+    @JsonBackReference
+    private Admin admin;
 
     private java.time.LocalDate fromDate;
     private java.time.LocalDate toDate;

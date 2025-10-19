@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 //trebuie sa facem tabela in mysql cu admin
+// o sa ne folosim de passwordEncripted ca sa facem parolele
 public class Admin {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,12 +33,13 @@ public class Admin {
     @Column(nullable = false)
     private Boolean active = true;
 
-   /* // Relații cu task-urile administrate
+    // Relații cu task-urile administrate
     @OneToMany(mappedBy = "admin")
     private List<Task> managedTasks;
 
     // Relații cu cererile de concediu gestionate
     @OneToMany(mappedBy = "admin")
+    @JsonManagedReference
     private List<LeaveRequest> leaveRequestsHandled;
 
     // Relații cu salariile administrate
@@ -45,5 +48,5 @@ public class Admin {
 
     // Relații cu rapoartele de productivitate
     @OneToMany(mappedBy = "admin")
-    private List<MonthlyReport> reportsGenerated;*/
+    private List<MonthlyReport> reportsGenerated;
 }

@@ -19,6 +19,10 @@ public class Payroll {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
+    @ManyToOne
+    @JoinColumn(name = "admin_id") // coloana din tabela task
+    private Admin admin;
+
     private java.time.Year month;
     private Double baseSalary;
     private Double bonuses = 0.0;

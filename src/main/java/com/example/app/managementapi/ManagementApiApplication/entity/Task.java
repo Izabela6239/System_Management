@@ -23,6 +23,10 @@ public class Task {
     @Column(columnDefinition = "JSON")
     private String requiredSkillsJson;
 
+    @ManyToOne
+    @JoinColumn(name = "admin_id") // coloana din tabela task
+    private Admin admin;
+
     private Integer plannedDurationMin;
     private Integer predictedDurationMin;
     private java.time.LocalDateTime deadline;

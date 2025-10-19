@@ -1,8 +1,10 @@
 package com.example.app.managementapi.ManagementApiApplication.controller;
 
+import com.example.app.managementapi.ManagementApiApplication.dto.LeaveRequestDTO;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
 import com.example.app.managementapi.ManagementApiApplication.entity.LeaveRequest;
 import com.example.app.managementapi.ManagementApiApplication.service.LeaveRequestService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,7 +14,8 @@ import java.util.List;
 @RequestMapping("/leave-requests")
 public class LeaveRequestController {
 
-    private final LeaveRequestService leaveRequestService;
+    @Autowired
+    private LeaveRequestService leaveRequestService;
 
     public LeaveRequestController(LeaveRequestService leaveRequestService) {
         this.leaveRequestService = leaveRequestService;
@@ -20,9 +23,8 @@ public class LeaveRequestController {
 
     // Creează cerere de concediu
     @PostMapping
-    public ResponseEntity<LeaveRequest> createLeaveRequest(@RequestBody LeaveRequest leaveRequest) {
-        LeaveRequest saved = leaveRequestService.createLeaveRequest(leaveRequest);
-        return ResponseEntity.ok(saved);
+    public LeaveRequest createLeaveRequest(@RequestBody LeaveRequestDTO dto) {
+        return leaveRequestService.createLeaveRequest(dto);
     }
 
     // Obține cererile unui angajat
