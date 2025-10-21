@@ -43,6 +43,14 @@
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.32</version>
+            <scope>provided</scope>
+        </dependency>
+
+
         <!-- MySQL connector -->
         <dependency>
             <groupId>com.mysql</groupId>

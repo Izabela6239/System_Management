@@ -1,36 +1,35 @@
 package ai.scoring;
 
 import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 import java.math.BigDecimal;
 import java.util.*;
 
-/**
- * Ajustează numele câmpurilor/entităților la modelul tău.
- * JPQL-ul presupune Assignment -> Task, Employee.
- */
 @RestController
 @RequestMapping("/ai/metrics")
-@RequiredArgsConstructor
 public class MetricsController {
 
     private final EntityManager em;
     private final ScoringService scoring;
+
+    // 🔹 Constructor explicit pentru injecție
+    public MetricsController(EntityManager em, ScoringService scoring) {
+        this.em = em;
+        this.scoring = scoring;
+    }
 
     @GetMapping("/productivity")
     public List<Map<String, Object>> productivity(@RequestParam String period,
                                                   @RequestParam(required = false) Long employeeId) {
 
         String jpql = """
-      SELECT a.id, t.id, a.employee.id, t.plannedDurationMin, t.predictedDurationMin,
-             a.actualDurationMin, a.adminGrade, t.difficulty,
-             t.revenue, t.otherCosts, a.finishedAt, a.employee.hourlyRate
-      FROM Assignment a
-      JOIN a.task t
-      WHERE FUNCTION('DATE_FORMAT', a.finishedAt, '%Y-%m') = :period
-      """ + (employeeId != null ? " AND a.employee.id = :eid" : "");
+            SELECT a.id, t.id, a.employee.id, t.plannedDurationMin, t.predictedDurationMin,
+                   a.actualDurationMin, a.adminGrade, t.difficulty,
+                   t.revenue, t.otherCosts, a.finishedAt, a.employee.hourlyRate
+            FROM Assignment a
+            JOIN a.task t
+            WHERE FUNCTION('DATE_FORMAT', a.finishedAt, '%Y-%m') = :period
+        """ + (employeeId != null ? " AND a.employee.id = :eid" : "");
 
         var q = em.createQuery(jpql, Object[].class).setParameter("period", period);
         if (employeeId != null) q.setParameter("eid", employeeId);

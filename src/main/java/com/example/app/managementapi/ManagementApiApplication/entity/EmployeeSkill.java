@@ -22,4 +22,28 @@ public class EmployeeSkill {
     @MapsId("skillId")
     @JoinColumn(name = "skill_id")
     private Skill skill;
+
+    public EmployeeSkillId getId() {
+        return id;
+    }
+
+    public void setId(EmployeeSkillId id) {
+        this.id = id;
+    }
+
+    public Employee getEmployee() {
+        return employee;
+    }
+
+    public void setEmployee(Employee employee) {
+        this.employee = employee;
+    }
+
+    public Skill getSkill() {
+        return skill;
+    }
+
+    public void setSkill(Skill skill) {
+        this.skill = skill;
+    }
 }

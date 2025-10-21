@@ -2,20 +2,16 @@ package ai.assign;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import entity.Assignment;
-import entity.Employee;
-import entity.EmployeeSkill;
-import entity.LeaveRequest;
-import entity.Skill;
-import entity.Task;
-import entity.TaskStatus;
-import repository.AssignmentRepository;
-import repository.EmployeeRepository;
-import repository.LeaveRequestRepository;
-import repository.TaskRepository;
-import lombok.RequiredArgsConstructor;
+
+import com.example.app.managementapi.ManagementApiApplication.entity.*;
+import com.example.app.managementapi.ManagementApiApplication.repository.AssignmentRepository;
+import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;
+import com.example.app.managementapi.ManagementApiApplication.repository.LeaveRequestRepository;
+import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
+
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +22,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AssignmentService {
 
     private final SolverFactory<AssignmentSolution> solverFactory;
@@ -37,20 +32,30 @@ public class AssignmentService {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    /** Generează propuneri pentru task-urile cu status NEW */
+    // ---- constructor explicit pentru DI (fără Lombok) ----
+    public AssignmentService(SolverFactory<AssignmentSolution> solverFactory,
+                             EmployeeRepository employeeRepo,
+                             TaskRepository taskRepo,
+                             LeaveRequestRepository leaveRepo,
+                             AssignmentRepository assignmentRepo) {
+        this.solverFactory = solverFactory;
+        this.employeeRepo = employeeRepo;
+        this.taskRepo = taskRepo;
+        this.leaveRepo = leaveRepo;
+        this.assignmentRepo = assignmentRepo;
+    }
+
+    /** Generează o soluție (fără a o persista). */
     @Transactional(readOnly = true)
     public AssignmentSolution suggest() {
-        // 1) employees -> PlanningEmployee
         List<PlanningEmployee> employees = employeeRepo.findActive().stream()
                 .map(this::toPlanningEmployee)
                 .toList();
 
-        // 2) tasks (status NEW) -> PlanningTask
         List<PlanningTask> tasks = taskRepo.findUnassigned().stream()
                 .map(this::toPlanningTask)
                 .toList();
 
-        // 3) rulează solverul
         AssignmentSolution problem = new AssignmentSolution();
         problem.setEmployees(employees);
         problem.setTasks(tasks);
@@ -59,7 +64,7 @@ public class AssignmentService {
         return solver.solve(problem);
     }
 
-    /** Persistă propunerile: creează Assignment + marchează Task ca ASSIGNED */
+    /** Persistă maparea task->employee (creează Assignment + setează Task.ASSIGNED). */
     @Transactional
     public Map<Long, Long> commit(Map<Long, Long> taskToEmployee) {
         Map<Long, Long> result = new LinkedHashMap<>();
@@ -72,21 +77,40 @@ public class AssignmentService {
             Employee emp = employeeRepo.findById(empId).orElse(null);
             if (t == null || emp == null) { result.put(taskId, null); continue; }
 
-            // Creează Assignment (completează câmpurile pe modelul tău)
             Assignment a = new Assignment();
             a.setTask(t);
             a.setEmployee(emp);
-            // dacă în Assignment ai Date, schimbă în java.util.Date
             a.setAssignedAt(LocalDateTime.now());
             assignmentRepo.save(a);
 
-            // Marchează task-ul ca ASSIGNED
             t.setStatus(TaskStatus.ASSIGNED);
             taskRepo.save(t);
 
             result.put(taskId, empId);
         }
         return result;
+    }
+
+    /** (Opțional) Face suggest + commit și întoarce un rezumat. */
+    @Transactional
+    public Map<String, Object> autoAssign() {
+        AssignmentSolution sol = suggest();
+
+        Map<Long, Long> mapping = new LinkedHashMap<>();
+        for (var t : sol.getTasks()) {
+            mapping.put(t.getTaskId(),
+                    t.getAssigned() != null ? t.getAssigned().getEmployeeId() : null);
+        }
+
+        Map<Long, Long> committed = commit(mapping);
+        long assigned = committed.values().stream().filter(Objects::nonNull).count();
+
+        return Map.of(
+                "score", sol.getScore() == null ? "" : sol.getScore().toString(),
+                "assignedCount", assigned,
+                "totalTasks", committed.size(),
+                "mapping", committed
+        );
     }
 
     // -------------------- mapări & helpers --------------------
@@ -96,9 +120,9 @@ public class AssignmentService {
         PlanningEmployee pe = new PlanningEmployee();
         pe.setEmployeeId(e.getId());
         pe.setSkills(extractSkillNames(e));
-        pe.setCapacityMinPerDay(480);   // TODO: fă-l configurabil
-        pe.setRecentSpeed(1.0);         // TODO: calculează din istoricul Assignment (avg base/actual)
-        pe.setAvgQuality(0.8);          // TODO: calculează medie notă (grade/10)
+        pe.setCapacityMinPerDay(480);                  // TODO: fă-l configurabil
+        pe.setRecentSpeed(computeRecentSpeed(e.getId()));
+        pe.setAvgQuality(computeAvgQuality(e.getId()));
         pe.setLeaves(expandApprovedLeaveDays(e.getId()));
         return pe;
     }
@@ -117,7 +141,7 @@ public class AssignmentService {
         return pt;
     }
 
-    /** Extrage numele skill-urilor din List<EmployeeSkill> de pe Employee */
+    /** Extrage nume de skill-uri din List<EmployeeSkill> de pe Employee. */
     private Set<String> extractSkillNames(Employee e) {
         if (e.getSkills() == null) return Set.of();
         return e.getSkills().stream()                  // List<EmployeeSkill>
@@ -128,7 +152,7 @@ public class AssignmentService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    /** Parsează JSON-ul ["Java","SQL"] din Task.requiredSkillsJson */
+    /** Parsează JSON-ul ["Java","SQL"] din Task.requiredSkillsJson. */
     private Set<String> parseSkillsJson(String json) {
         if (json == null || json.isBlank()) return Set.of();
         try {
@@ -138,7 +162,7 @@ public class AssignmentService {
         }
     }
 
-    /** Zilele acoperite de concedii aprobate pentru un employee */
+    /** Zilele acoperite de concedii aprobate pentru un employee. */
     private Set<LocalDate> expandApprovedLeaveDays(Long employeeId) {
         List<LeaveRequest> intervals = leaveRepo.findApprovedForEmployee(employeeId);
         Set<LocalDate> days = new HashSet<>();
@@ -150,6 +174,45 @@ public class AssignmentService {
             for (int i = 0; i <= n; i++) days.add(a.plusDays(i));
         }
         return days;
+    }
+
+    /** Media (clamped) a raportului planned/predicted vs actual pe ultimele N assignment-uri finalizate. */
+    private double computeRecentSpeed(Long empId) {
+        var last = assignmentRepo.findRecentFinished(empId, PageRequest.of(0, 10));
+        if (last == null || last.isEmpty()) return 1.0;
+
+        double sum = 0.0; int n = 0;
+        for (Assignment a : last) {
+            Task t = a.getTask();
+            Integer actual = a.getActualDurationMin();
+            if (t == null || actual == null || actual <= 0) continue;
+
+            int base = (t.getPredictedDurationMin() != null && t.getPredictedDurationMin() > 0)
+                    ? t.getPredictedDurationMin() : nvl(t.getPlannedDurationMin(), 60);
+
+            sum += (double) base / actual;  // >1 = mai rapid decât planul
+            n++;
+        }
+        if (n == 0) return 1.0;
+        double avg = sum / n;
+        return Math.max(0.5, Math.min(1.5, avg)); // clamp
+    }
+
+    /** Media (clamped) a notelor adminului (0..10) scalate la 0..1 pe ultimele N assignment-uri finalizate. */
+    private double computeAvgQuality(Long empId) {
+        var last = assignmentRepo.findRecentFinished(empId, PageRequest.of(0, 10));
+        if (last == null || last.isEmpty()) return 0.8;
+
+        double sum = 0.0; int n = 0;
+        for (Assignment a : last) {
+            Integer g = a.getAdminGrade();
+            if (g == null) continue;
+            sum += Math.max(0, Math.min(10, g)) / 10.0;
+            n++;
+        }
+        if (n == 0) return 0.8;
+        double avg = sum / n;
+        return Math.max(0.5, Math.min(1.0, avg)); // clamp
     }
 
     private int nvl(Integer v, int def) { return v == null ? def : v; }

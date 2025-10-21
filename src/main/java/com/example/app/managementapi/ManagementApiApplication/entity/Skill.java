@@ -21,4 +21,28 @@ public class Skill {
 
     @OneToMany(mappedBy = "skill")
     private List<EmployeeSkill> employeeSkills;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public List<EmployeeSkill> getEmployeeSkills() {
+        return employeeSkills;
+    }
+
+    public void setEmployeeSkills(List<EmployeeSkill> employeeSkills) {
+        this.employeeSkills = employeeSkills;
+    }
 }
