@@ -1,3 +1,11 @@
+/* Bootstrap 5.x – import complet în ordinea corectă internă */
+@use "bootstrap/scss/bootstrap";
+
+/* după Bootstrap, stilurile tale */
+@use "./partials/layout" as *;  /* doar dacă ai fișierul */
+
+
+
 @charset "UTF-8";
 /*!
  * Bootstrap  v5.3.3 (https://getbootstrap.com/)
