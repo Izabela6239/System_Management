@@ -11,7 +11,6 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-//trebuie sa facem tabela in mysql cu admin
 // o sa ne folosim de passwordEncripted ca sa facem parolele
 public class Admin {
     @Id

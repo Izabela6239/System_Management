@@ -4,7 +4,7 @@ import com.example.app.managementapi.ManagementApiApplication.dto.LeaveRequestDT
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
 import com.example.app.managementapi.ManagementApiApplication.entity.LeaveRequest;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
-import com.example.app.managementapi.ManagementApiApplication.entity.LeaveStatus;
+import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import com.example.app.managementapi.ManagementApiApplication.mapper.LeaveRequestMapper;
 import com.example.app.managementapi.ManagementApiApplication.repository.AdminRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;

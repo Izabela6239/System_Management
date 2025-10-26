@@ -1,7 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.controller;
 
 import com.example.app.managementapi.ManagementApiApplication.entity.Task;
-import com.example.app.managementapi.ManagementApiApplication.entity.TaskStatus;
+import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
 import org.springframework.web.bind.annotation.*;
 import com.example.app.managementapi.ManagementApiApplication.service.TaskService;
 

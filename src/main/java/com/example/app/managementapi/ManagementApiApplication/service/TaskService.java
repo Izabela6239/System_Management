@@ -1,7 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.service;
 
 import com.example.app.managementapi.ManagementApiApplication.entity.Task;
-import com.example.app.managementapi.ManagementApiApplication.entity.TaskStatus;
+import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
 import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 

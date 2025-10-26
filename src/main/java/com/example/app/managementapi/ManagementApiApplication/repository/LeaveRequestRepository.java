@@ -2,6 +2,7 @@ package com.example.app.managementapi.ManagementApiApplication.repository;
 
 import com.example.app.managementapi.ManagementApiApplication.entity.LeaveRequest;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
+import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -11,10 +12,14 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByEmployee(Employee employee);
 
+    List<LeaveRequest> findByEmployeeIdAndStatus(Long employeeId, LeaveStatus status);
     @Query("""
        select lr from LeaveRequest lr
        where lr.employee.id = :employeeId
-         and lr.status = com.example.app.managementapi.ManagementApiApplication.entity.LeaveStatus.APPROVED
+         and lr.status = com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus.APPROVED
     """)
     List<LeaveRequest> findApprovedForEmployee(Long employeeId);
+
+    List<LeaveRequest> findByEmployeeId(Long employeeId);
 }
+

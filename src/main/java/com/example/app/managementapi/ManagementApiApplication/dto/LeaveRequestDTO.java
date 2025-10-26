@@ -1,6 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.dto;
 
-import com.example.app.managementapi.ManagementApiApplication.entity.LeaveStatus;
+import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDate;

@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -1,8 +1,12 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.enums.Seniority;
+import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+import org.apache.catalina.User;
+
 import java.util.List;
 
 @Entity
@@ -11,6 +15,14 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+//1. Employee login → primește JWT cu role=EMPLOYEE și employeeId=123
+//2. Frontend salvează token
+//3. La fiecare request: Authorization: Bearer <token>
+//4. Backend verifică:
+//   - Token valid? ✓
+//   - Are role EMPLOYEE? ✓
+//   - employeeId din token corespunde cu cererea? ✓
+//5. Returnează DOAR datele angajatului 123
 public class Employee {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,12 +31,15 @@ public class Employee {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private String password;
+
     @Column(unique = true)
     private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role; // ADMIN, EMPLOYEE
+    private UserRole role; // ADMIN, EMPLOYEE
 
     @Column(nullable = false)
     private Double hourlyRate = 0.0;
@@ -81,11 +96,12 @@ public class Employee {
         this.email = email;
     }
 
-    public Role getRole() {
+    //de ce ai nevoie de set si get role aici ca employee n are rol
+    public UserRole getRole() {
         return role;
     }
 
-    public void setRole(Role role) {
+    public void setRole(UserRole role) {
         this.role = role;
     }
 

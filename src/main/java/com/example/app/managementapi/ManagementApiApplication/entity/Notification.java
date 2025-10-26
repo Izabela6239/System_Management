@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.enums.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 

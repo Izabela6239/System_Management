@@ -2,6 +2,7 @@ package com.example.app.managementapi.ManagementApiApplication.mapper;
 
 import com.example.app.managementapi.ManagementApiApplication.dto.LeaveRequestDTO;
 import com.example.app.managementapi.ManagementApiApplication.entity.*;
+import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;

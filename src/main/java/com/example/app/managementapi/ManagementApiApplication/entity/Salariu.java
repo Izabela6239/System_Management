@@ -18,7 +18,7 @@ public class Salariu {
     @JoinColumn(name = "employee_id")
     private Employee employee;
 
-    private String luna; // ex: 2025-10
+    private String luna;
     private Double suma;
     private Double bonus;
 }
