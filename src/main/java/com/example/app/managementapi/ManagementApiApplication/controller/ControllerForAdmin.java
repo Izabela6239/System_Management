@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Year;
 import java.time.YearMonth;
@@ -126,5 +127,29 @@ public class ControllerForAdmin {
                 .orElseThrow(() -> new RuntimeException("Admin not found for user: " + username));
 
         return assignmentService.getTasksByAdmin(admin.getId());
+    }
+
+    // ===== TASK MGMT =====
+    @PutMapping("/tasks/{id}/preset-duration")
+    public Task setPresetDuration(@PathVariable Long id, @RequestParam int minutes) {
+        return assignmentService.setPresetDuration(id, minutes);
+    }
+
+    @PutMapping("/tasks/{id}/difficulty")
+    public Task setDifficulty(@PathVariable Long id, @RequestParam int level) {
+        return assignmentService.setDifficulty(id, level);
+    }
+
+    @PutMapping("/tasks/{id}/finalize")
+    public Task finalizeTask(@PathVariable Long id,
+                             @RequestParam int actualMinutes,
+                             @RequestParam(required = false) Integer grade,
+                             @RequestParam(required = false) Double profit) {
+        return assignmentService.finalizeTask(id, actualMinutes, grade, profit);
+    }
+
+    @PostMapping(value = "/employee/import-xml", consumes = {"multipart/form-data"})
+    public List<User> importEmployeesXml(@RequestPart("file") MultipartFile file) {
+        return employeeService.importEmployeesXml(file);
     }
 }
