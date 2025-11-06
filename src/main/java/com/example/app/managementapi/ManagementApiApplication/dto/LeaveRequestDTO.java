@@ -6,7 +6,7 @@ import lombok.Setter;
 import java.time.LocalDate;
 
 @Getter
-@Setter
+@Setter//dto uri folosite pentru transmitere date din backend in forntend
 public class LeaveRequestDTO {
     private Long employeeId;
     private Long adminId;

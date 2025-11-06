@@ -1,6 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.service;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
+import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import com.example.app.managementapi.ManagementApiApplication.repository.UserRepository;
 import com.example.app.managementapi.ManagementApiApplication.dto.LeaveRequestDTO;
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
@@ -14,6 +15,7 @@ import com.example.app.managementapi.ManagementApiApplication.repository.Employe
 import com.example.app.managementapi.ManagementApiApplication.repository.LeaveRequestRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,8 +29,8 @@ public class EmployeeService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final AdminRepository adminRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    // ------------------- CONCEDIU -------------------
 
     public LeaveRequest createLeaveRequest(LeaveRequestDTO dto) {
         Employee employee = employeeRepository.findById(dto.getEmployeeId())
@@ -63,25 +65,15 @@ public class EmployeeService {
         return leaveRequestRepository.findByEmployeeId(employeeId);
     }
 
-    // ------------------- TASKS -------------------
-
-    /**
-     * Obține toate task-urile pentru un employee (prin assignments)
-     */
     public List<Task> getAllTasks(Long employeeId) {
         return taskRepository.findTasksByEmployeeId(employeeId);
     }
 
-    /**
-     * Obține task-urile pentru un employee filtrate după status
-     */
+
     public List<Task> getTasksByStatus(Long employeeId, TaskStatus status) {
         return taskRepository.findTasksByEmployeeIdAndStatus(employeeId, status);
     }
 
-    /**
-     * Actualizează un task
-     */
     public Task updateTask(Long taskId, TaskStatus status, Integer plannedDurationMin) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
@@ -96,16 +88,10 @@ public class EmployeeService {
         return taskRepository.save(task);
     }
 
-    /**
-     * Verifică dacă un task este asignat unui employee
-     */
     public boolean isTaskAssignedToEmployee(Long taskId, Long employeeId) {
         return taskRepository.isTaskAssignedToEmployee(taskId, employeeId);
     }
 
-    /**
-     * Obține Employee ID din User ID
-     */
     public Long getEmployeeIdFromUserId(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -122,8 +108,6 @@ public class EmployeeService {
         return employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
     }
-
-    // ------------------- METODE UTILE -------------------
 
     public List<Task> getTasksInProgress(Long employeeId) {
         return getTasksByStatus(employeeId, TaskStatus.IN_PROGRESS);
@@ -143,5 +127,37 @@ public class EmployeeService {
 
     public List<LeaveRequest> getRejectedLeaveRequests(Long employeeId) {
         return leaveRequestRepository.findByEmployeeIdAndStatus(employeeId, LeaveStatus.REJECTED);
+    }
+
+    public List<User> getAllEmployees() {
+        return userRepository.findAll()
+                .stream()
+                .filter(User::isEmployee) // luam doar userii care sunt employee
+                .toList();
+    }
+
+    public User createEmployee(User employee) {
+        employee.setRole(UserRole.EMPLOYEE);
+        employee.setActive(true);
+        employee.setPassword(passwordEncoder.encode(employee.getPassword()));
+        return userRepository.save(employee);
+    }
+
+    public User updateEmployee(Long id, User updated) {
+        User existing = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        existing.setUsername(updated.getUsername());
+        existing.setActive(updated.getActive());
+
+        if (updated.getPassword() != null && !updated.getPassword().isEmpty()) {
+            existing.setPassword(passwordEncoder.encode(updated.getPassword()));
+        }
+
+        return userRepository.save(existing);
+    }
+
+    public void deleteEmployee(Long id) {
+        userRepository.deleteById(id);
     }
 }

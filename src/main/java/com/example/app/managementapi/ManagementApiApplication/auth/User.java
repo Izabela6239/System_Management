@@ -35,11 +35,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean active = true;
 
-    // 🔗 Legături simple prin ID-uri (fără relații JPA complicate)
+
     private Long adminId;    // ID-ul din tabela admin
     private Long employeeId; // ID-ul din tabela employee
 
-    // 🎯 METODĂ HELPER: Determină entitatea business corectă
+
     public boolean isAdmin() {
         return adminId != null && role == UserRole.ADMIN;
     }
@@ -47,8 +47,7 @@ public class User implements UserDetails {
     public boolean isEmployee() {
         return employeeId != null && role == UserRole.EMPLOYEE;
     }
-
-    // 🔐 SPRING SECURITY METHODS
+    //spring seucrity methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));

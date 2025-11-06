@@ -8,16 +8,13 @@ import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
 import com.example.app.managementapi.ManagementApiApplication.repository.AdminRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -42,8 +39,7 @@ public class AuthService {
         User user = (User) authentication.getPrincipal();
         String jwt = jwtUtil.generateToken(user);
 
-        // Obține datele business din Admin/Employee
-        String displayName = getBusinessDisplayName(user);
+        //String displayName = getBusinessDisplayName(user);
         Long businessEntityId = getBusinessEntityId(user);
 
         return new LoginResponseDTO(

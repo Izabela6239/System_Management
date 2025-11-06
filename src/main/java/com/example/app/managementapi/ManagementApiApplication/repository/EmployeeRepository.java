@@ -10,15 +10,12 @@ import java.util.List;
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
-    // ✅ Pentru AssignmentService
     @Query("SELECT e FROM Employee e WHERE e.active = true")
     List<Employee> findActive();
 
-    // ✅ Alte metode utile
     List<Employee> findByActiveTrue();
     List<Employee> findByRole(String role);
 
-    // ✅ Găsește employees cu anumite skill-uri (pentru AI matching)
     @Query("SELECT DISTINCT e FROM Employee e JOIN e.skills es JOIN es.skill s WHERE s.name IN :skillNames")
     List<Employee> findBySkillNames(@Param("skillNames") List<String> skillNames);
 }

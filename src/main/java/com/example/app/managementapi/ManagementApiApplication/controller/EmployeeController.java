@@ -19,15 +19,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/employee")
 @PreAuthorize("hasRole('EMPLOYEE')")
-//trebuie sa fac ca task urile sa fie asignate sa pot afisa task uri specifice
-//fiecarui angajat in endpoint uri
 @RequiredArgsConstructor
 public class EmployeeController {
 
     private final EmployeeService employeeService;
     private final UserRepository userRepository;
 
-    // ------------------- CONCEDIU -------------------
 
     @PostMapping("/leave")
     public LeaveRequest createLeaveRequest(@RequestBody LeaveRequestDTO dto,
@@ -36,8 +33,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        dto.setEmployeeId(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        dto.setEmployeeId(user.getEmployeeId());
 
         if (dto.getStatus() == null) {
             dto.setStatus(LeaveStatus.PENDING);
@@ -52,8 +53,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getLeaveRequests(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getLeaveRequests(user.getEmployeeId());
     }
 
     @GetMapping("/leave/pending")
@@ -62,8 +67,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getPendingLeaveRequests(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getPendingLeaveRequests(user.getEmployeeId());
     }
 
     @GetMapping("/leave/approved")
@@ -72,8 +81,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getApprovedLeaveRequests(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getApprovedLeaveRequests(user.getEmployeeId());
     }
 
     @GetMapping("/leave/rejected")
@@ -82,11 +95,14 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getRejectedLeaveRequests(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getRejectedLeaveRequests(user.getEmployeeId());
     }
 
-    // ------------------- TASKS -------------------
 
     @GetMapping("/tasks")
     public List<Task> getTasks(Authentication authentication) {
@@ -94,8 +110,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getAllTasks(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getAllTasks(user.getEmployeeId());
     }
 
     @GetMapping("/tasks/in-progress")
@@ -104,8 +124,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getTasksInProgress(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getTasksInProgress(user.getEmployeeId());
     }
 
     @GetMapping("/tasks/completed")
@@ -114,8 +138,12 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
-        return employeeService.getCompletedTasks(employeeId);
+
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
+
+        return employeeService.getCompletedTasks(user.getEmployeeId());
     }
 
     @PutMapping("/tasks/{taskId}")
@@ -127,13 +155,20 @@ public class EmployeeController {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Long employeeId = employeeService.getEmployeeIdFromUserId(user.getId());
+      //folosim employee din user
+        if (user.getEmployeeId() == null) {
+            throw new RuntimeException("User is not associated with any employee");
+        }
 
-        // Verifică dacă task-ul este asignat employee-ului
+        Long employeeId = user.getEmployeeId();
+
+
         if (!employeeService.isTaskAssignedToEmployee(taskId, employeeId)) {
             throw new RuntimeException("You can only update your own tasks");
         }
 
         return employeeService.updateTask(taskId, status, plannedDurationMin);
     }
+
+
 }

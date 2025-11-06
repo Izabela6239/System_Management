@@ -1,11 +1,12 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.auth.EmployeeListener;
 import com.example.app.managementapi.ManagementApiApplication.enums.Seniority;
 import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
-import org.apache.catalina.User;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EntityListeners(EmployeeListener.class)
 //1. Employee login → primește JWT cu role=EMPLOYEE și employeeId=123
 //2. Frontend salvează token
 //3. La fiecare request: Authorization: Bearer <token>
@@ -39,7 +41,7 @@ public class Employee {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role; // ADMIN, EMPLOYEE
+    private UserRole role; //EMPLOYEE
 
     @Column(nullable = false)
     private Double hourlyRate = 0.0;
@@ -51,6 +53,7 @@ public class Employee {
 
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Assignment> assignments;
 
     @OneToMany(mappedBy = "employee")
@@ -58,18 +61,23 @@ public class Employee {
     private List<LeaveRequest> leaveRequests;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<EmployeeSkill> skills;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Bonus> bonuses;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Payroll> payrolls;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<Notification> notifications;
 
     @OneToMany(mappedBy = "employee")
+    @JsonIgnore
     private List<MonthlyReport> reports;
 
     public Long getId() {

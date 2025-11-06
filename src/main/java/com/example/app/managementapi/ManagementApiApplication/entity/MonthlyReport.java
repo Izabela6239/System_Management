@@ -1,7 +1,10 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.YearMonth;
 
 @Entity
 @Table(name = "monthly_report")
@@ -19,10 +22,11 @@ public class MonthlyReport {
     private Employee employee;
 
     @ManyToOne
-    @JoinColumn(name = "admin_id") // coloana din tabela task
+    @JoinColumn(name = "admin_id")
     private Admin admin;
 
-    private java.time.Year month;
+    @Column(name = "month")
+    private YearMonth month;
     private Integer totalTasks = 0;
     private Double avgGrade;
     private Double totalRevenue;

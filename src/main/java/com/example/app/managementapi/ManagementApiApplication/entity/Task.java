@@ -1,6 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,7 +21,7 @@ public class Task {
 
     private String title;
     private String type;
-    private Integer difficulty; // 1..5
+    private Integer difficulty;
 
     @Column(columnDefinition = "JSON")
     private String requiredSkillsJson;
@@ -40,6 +41,7 @@ public class Task {
     private TaskStatus status = TaskStatus.NEW;
 
     @OneToMany(mappedBy = "task")
+    @JsonIgnore
     private List<Assignment> assignments;
 
     @OneToOne(mappedBy = "task")

@@ -13,7 +13,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-//ca sa poti sa faci leave request trebuie sa creezi si niste angajati
+
 public class LeaveRequest {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,7 +25,7 @@ public class LeaveRequest {
     private Employee employee;
 
     @ManyToOne
-    @JoinColumn(name = "admin_id") // <-- adăugat
+    @JoinColumn(name = "admin_id")
     @JsonBackReference
     private Admin admin;
 

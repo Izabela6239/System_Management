@@ -1,5 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.auth.AdminListener;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +13,8 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-// o sa ne folosim de passwordEncripted ca sa facem parolele
+@EntityListeners(AdminListener.class)
+//mu e bine sa trimitem entity in forntend pt ca s strans legate de db, avem campuri care nu trebuie sa se vada
 public class Admin {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,21 +35,24 @@ public class Admin {
     @Column(nullable = false)
     private Boolean active = true;
 
-    // Relații cu task-urile administrate
+
     @OneToMany(mappedBy = "admin")
+    @JsonIgnore // previne afisarea recursiva
     private List<Task> managedTasks;
 
-    // Relații cu cererile de concediu gestionate
+
     @OneToMany(mappedBy = "admin")
     @JsonManagedReference
     private List<LeaveRequest> leaveRequestsHandled;
 
-    // Relații cu salariile administrate
-    @OneToMany(mappedBy = "admin")
+
+    @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
+    @JsonIgnore //previne serializarea
     private List<Payroll> payrollsManaged;
 
-    // Relații cu rapoartele de productivitate
-    @OneToMany(mappedBy = "admin")
+
+    @OneToMany(mappedBy = "admin", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<MonthlyReport> reportsGenerated;
 
     public Long getId() {

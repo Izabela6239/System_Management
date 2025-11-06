@@ -1,67 +1,248 @@
-import StatCard from '../components/ui/StatCard';
-import LineBarCombo from '../components/charts/LineBarCombo';
-import Donut from '../components/charts/Donut';
-import ProgressTable from '../components/tables/ProgressTable';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+//mai trebuie facuta pagina cu butoane in sidebar pentru admin si facuta legatura la pagina cu baza de date sa poata
+//prelua ce i in baza de date
+//trebuie populata baza de date cu valori ca sa avem cu ce lucra in interfata
+import {
+    getTasks,
+    getTasksInProgress,
+    getCompletedTasks,
+    getLeaveRequests,
+    getPendingLeaveRequests,
+    getApprovedLeaveRequests,
+    getRejectedLeaveRequests,
+    createLeaveRequest,
+    Task,
+    LeaveRequest,
+} from "../services/EmployeeService";
+import { updateTask } from "../services/EmployeeService";
 
 
-const shipmentData = [
-    { day:'1 Jan', shipment: 35, delivery: 22 },
-    { day:'2 Jan', shipment: 42, delivery: 27 },
-    { day:'3 Jan', shipment: 31, delivery: 23 },
-    { day:'4 Jan', shipment: 36, delivery: 30 },
-    { day:'5 Jan', shipment: 29, delivery: 25 },
-    { day:'6 Jan', shipment: 48, delivery: 40 },
-    { day:'7 Jan', shipment: 45, delivery: 32 },
-    { day:'8 Jan', shipment: 33, delivery: 35 },
-    { day:'9 Jan', shipment: 38, delivery: 24 },
-    { day:'10 Jan', shipment: 25, delivery: 31 },
-];
+import StatCard from "../components/ui/StatCard";
+import LineBarCombo from "../components/charts/LineBarCombo";
+import Donut from "../components/charts/Donut";
+import ProgressTable from "../components/tables/ProgressTable";
 
-const donutData = [
-    { name:'Incorrect address', value: 30 },
-    { name:'Weather conditions', value: 20 },
-    { name:'Federal Holidays', value: 25 },
-    { name:'Damage during transit', value: 15 },
-    { name:'Other', value: 10 },
-];
+type View = "TASKS" | "LEAVES";
 
-const rows = [
-    { code:'VOL-159145', start:'Paris, FR', end:'Dresden, DE', warning:'No Warnings', progress:60 },
-    { code:'VOL-182964', start:'Saintes, FR', end:'Roma, IT', warning:'Fuel Problems', progress:82 },
-    { code:'VOL-276904', start:'Aulnay-sous-Bois, FR', end:'Torino, IT', warning:'Temperature Not Optimal', progress:30 },
-    { code:'VOL-300198', start:'West Palm Beach, USA', end:'Dresden, DE', warning:'ECU Not Responding', progress:90 },
-    { code:'VOL-302781', start:'Köln, DE', end:'La Spezia, IT', warning:'Oil Leakage', progress:24 },
-];
+export default function Dashboard() {
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+    const [view, setView] = useState<View>("TASKS");
 
-export default function Dashboard(){
+    // Load all tasks
+    const loadTasks = async () => {
+        try {
+            const data = await getTasks();
+            setTasks(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error loading tasks:", error);
+            setTasks([]);
+        }
+    };
+
+    // Load all leave requests
+    const loadLeaveRequests = async () => {
+        try {
+            const data = await getLeaveRequests();
+            setLeaveRequests(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error loading leave requests:", error);
+            setLeaveRequests([]);
+        }
+    };
+
+    // Sidebar button actions
+    const actions = {
+        tasks: {
+            all: loadTasks,
+            inProgress: async () => {
+                const data = await getTasksInProgress();
+                setTasks(Array.isArray(data) ? data : []);
+            },
+            completed: async () => {
+                const data = await getCompletedTasks();
+                setTasks(Array.isArray(data) ? data : []);
+            },
+        },
+        leaves: {
+            all: loadLeaveRequests,
+            pending: async () => {
+                const data = await getPendingLeaveRequests();
+                setLeaveRequests(Array.isArray(data) ? data : []);
+            },
+            approved: async () => {
+                const data = await getApprovedLeaveRequests();
+                setLeaveRequests(Array.isArray(data) ? data : []);
+            },
+            rejected: async () => {
+                const data = await getRejectedLeaveRequests();
+                setLeaveRequests(Array.isArray(data) ? data : []);
+            },
+            create: async () => {
+                const reason = prompt("Enter leave reason:");
+                if (!reason) return;
+                try {
+                    await createLeaveRequest({ reason, fromDate: new Date().toISOString(), toDate: new Date().toISOString() });
+                    alert("Leave request created!");
+                    loadLeaveRequests();
+                } catch (error) {
+                    console.error("Error creating leave request:", error);
+                    alert("Failed to create leave request");
+                }
+            }
+        },
+        update: async () => {
+            const idStr = prompt("Enter Task ID to update:");
+            if (!idStr) return;
+
+            const taskId = parseInt(idStr);
+            if (isNaN(taskId)) {
+                alert("Invalid ID");
+                return;
+            }
+
+            // Alegi ce vrei să modifici:
+            const newStatus = prompt("Enter new status (e.g. TODO, IN_PROGRESS, DONE) or leave empty:");
+            const newDurationStr = prompt("Enter new planned duration (minutes) or leave empty:");
+
+            let plannedDurationMin: number | undefined = undefined;
+            if (newDurationStr && !isNaN(parseInt(newDurationStr))) {
+                plannedDurationMin = parseInt(newDurationStr);
+            }
+
+            try {
+                await updateTask(taskId, newStatus || undefined, plannedDurationMin);
+                alert("Task updated successfully!");
+                loadTasks();
+            } catch (error) {
+                console.error("Error updating task:", error);
+                alert("Failed to update task.");
+            }
+        }
+    };
+
+    // Stats
+    const taskStats = {
+        total: Array.isArray(tasks) ? tasks.length : 0,
+        completed: Array.isArray(tasks) ? tasks.filter((t) => t.status === "COMPLETED").length : 0,
+        inProgress: Array.isArray(tasks) ? tasks.filter((t) => t.status === "IN_PROGRESS").length : 0,
+        pending: Array.isArray(tasks) ? tasks.filter((t) => t.status === "NEW" || t.status === "PENDING").length : 0,
+    };
+
+    const leaveStats = {
+        total: Array.isArray(leaveRequests) ? leaveRequests.length : 0,
+        pending: Array.isArray(leaveRequests) ? leaveRequests.filter((l) => l.status === "PENDING").length : 0,
+        approved: Array.isArray(leaveRequests) ? leaveRequests.filter((l) => l.status === "APPROVED").length : 0,
+        rejected: Array.isArray(leaveRequests) ? leaveRequests.filter((l) => l.status === "REJECTED").length : 0,
+    };
+
+    // Charts
+    const taskStatusDistribution = [
+        { name: "Completed", value: taskStats.completed },
+        { name: "In Progress", value: taskStats.inProgress },
+        { name: "Pending", value: taskStats.pending },
+    ];
+
+    const leaveStatusDistribution = [
+        { name: "Approved", value: leaveStats.approved },
+        { name: "Pending", value: leaveStats.pending },
+        { name: "Rejected", value: leaveStats.rejected },
+    ];
+
+    // Load tasks and leaves on mount
+    useEffect(() => {
+        loadTasks();
+        loadLeaveRequests();
+    }, []);
+
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div className="flex h-screen">
+            {/* Sidebar */}
+            <div className="w-15 p-4 bg-gray-100 flex flex-col gap-2">
+                <h2 className="font-semibold mb-2">Actions</h2>
 
-            {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <StatCard title="Total Employees" value={25}/>
-                <StatCard title="Active" value={20}/>
-                <StatCard title="On Leave" value={3} dotClass="bg-cyan-400"/>
-                <StatCard title="Total Tasks" value={42}/>
-                <StatCard title="Completed" value={27}/>
-                <StatCard title="New Hires" value={2} dotClass="bg-orange-400"/>
-                <StatCard title="In Progress" value={10}/>
-                <StatCard title="Pending" value={5}/>
-                <StatCard title="Delayed" value={5} dotClass="bg-vx-warn"/>
-                <StatCard title="Requests" value={18}/>
-                <StatCard title="Approved" value={10} dotClass="bg-vx-accent"/>
-                <StatCard title="Rejected" value={3} dotClass="bg-vx-danger"/>
+                {/* Tasks */}
+                <button onClick={() => { setView("TASKS"); actions.tasks.all(); }} className="btn">All Tasks</button>
+                <button onClick={() => { setView("TASKS"); actions.tasks.inProgress(); }} className="btn">In Progress</button>
+                <button onClick={() => { setView("TASKS"); actions.tasks.completed(); }} className="btn">Completed</button>
+                <button onClick={() => { setView("LEAVES"); actions.update(); }} className="btn">Update task</button>
+
+                <hr className="my-2"/>
+
+                {/* Leave Requests */}
+                <button onClick={() => { setView("LEAVES"); actions.leaves.all(); }} className="btn">All Leaves</button>
+                <button onClick={() => { setView("LEAVES"); actions.leaves.pending(); }} className="btn">Pending</button>
+                <button onClick={() => { setView("LEAVES"); actions.leaves.approved(); }} className="btn">Approved</button>
+                <button onClick={() => { setView("LEAVES"); actions.leaves.rejected(); }} className="btn">Rejected</button>
+                <button onClick={() => { setView("LEAVES"); actions.leaves.create(); }} className="btn">Create Leave</button>
+
             </div>
 
-            {/* Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2"><LineBarCombo data={shipmentData}/></div>
-                <Donut data={donutData}/>
-            </div>
+            {/* Main Content */}
+            <div className="flex-1 p-6 overflow-auto space-y-6">
+                <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-            {/* Table */}
-            <ProgressTable rows={rows}/>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-4 gap-4 mb-6">
+                    {view === "TASKS" ? (
+                        <>
+                            <StatCard title="Total Tasks" value={taskStats.total} />
+                            <StatCard title="Completed" value={taskStats.completed} />
+                            <StatCard title="In Progress" value={taskStats.inProgress} />
+                            <StatCard title="Pending" value={taskStats.pending} />
+                        </>
+                    ) : (
+                        <>
+                            <StatCard title="Total Leaves" value={leaveStats.total} />
+                            <StatCard title="Pending" value={leaveStats.pending} />
+                            <StatCard title="Approved" value={leaveStats.approved} />
+                            <StatCard title="Rejected" value={leaveStats.rejected} />
+                        </>
+                    )}
+                </div>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                    <div className="lg:col-span-2">
+                        <LineBarCombo
+                            data={
+                                view === "TASKS"
+                                    ? tasks.map((t) => ({
+                                        name: t.title,
+                                        progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20
+                                    }))
+                                    : leaveRequests.map((l) => ({
+                                        name: `${l.fromDate} - ${l.toDate}`,
+                                        progress: l.status === "APPROVED" ? 100 : l.status === "PENDING" ? 50 : 0
+                                    }))
+                            }
+                        />
+                    </div>
+                    <Donut data={view === "TASKS" ? taskStatusDistribution : leaveStatusDistribution} />
+                </div>
+
+                {/* Progress Table */}
+                <ProgressTable
+                    rows={
+                        view === "TASKS"
+                            ? tasks.map((t) => ({
+                                code: t.id.toString(),
+                                start: t.title,
+                                end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
+                                warning: t.priority && t.priority >= 4 ? "High Priority" : "",
+                                progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
+                            }))
+                            : leaveRequests.map((l) => ({
+                                code: l.id.toString(),
+                                start: l.fromDate,
+                                end: l.toDate,
+                                warning: l.reason || "",
+                                progress: l.status === "APPROVED" ? 100 : l.status === "PENDING" ? 50 : 0,
+                            }))
+                    }
+                />
+            </div>
         </div>
     );
 }

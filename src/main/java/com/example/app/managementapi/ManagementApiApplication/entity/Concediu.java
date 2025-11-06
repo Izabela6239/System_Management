@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,6 +23,6 @@ public class Concediu {
 
     private LocalDate dataStart;
     private LocalDate dataEnd;
-    private String status; // CERERE, ACCEPTAT, RESPINS
+    private LeaveStatus status;
     private String motiv;
 }

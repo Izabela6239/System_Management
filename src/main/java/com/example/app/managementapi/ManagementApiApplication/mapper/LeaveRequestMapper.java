@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 
 @Component
+//transforma entity in dto pentru transfer
 public class LeaveRequestMapper {
 
     public LeaveRequest toEntity(LeaveRequestDTO dto, Employee employee, Admin admin) {
@@ -22,7 +23,7 @@ public class LeaveRequestMapper {
 
         LeaveRequest lr = new LeaveRequest();
         lr.setEmployee(employee);
-        lr.setAdmin(admin); // poate fi null la creare
+        lr.setAdmin(admin);
         lr.setFromDate(from);
         lr.setToDate(to);
         lr.setReason(clean(dto.getReason()));

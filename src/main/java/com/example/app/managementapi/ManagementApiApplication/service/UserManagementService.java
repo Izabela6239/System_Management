@@ -22,9 +22,6 @@ public class UserManagementService {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
 
-    /**
-     * Creează un Admin și User asociat
-     */
     @Transactional
     public User createAdminUser(String username, String rawPassword, String name, String email) {
         // 1. Creează Admin (cu datele de business)
@@ -47,9 +44,6 @@ public class UserManagementService {
         return userRepository.save(user);
     }
 
-    /**
-     * Creează un Employee și User asociat
-     */
     @Transactional
     public User createEmployeeUser(String username, String rawPassword, String name, String email,
                                    Double hourlyRate, Seniority seniority) {
@@ -57,19 +51,18 @@ public class UserManagementService {
         Employee employee = new Employee();
         employee.setName(name);
         employee.setEmail(email);
-        employee.setPassword(passwordEncoder.encode(rawPassword)); // Păstrăm pentru compatibilitate
-        employee.setRole(UserRole.EMPLOYEE); // Setează rolul în Employee
+        employee.setPassword(passwordEncoder.encode(rawPassword));
+        employee.setRole(UserRole.EMPLOYEE);
         employee.setHourlyRate(hourlyRate);
         employee.setSeniority(seniority);
         employee.setActive(true);
         Employee savedEmployee = employeeRepository.save(employee);
 
-        // 2. Creează User (doar pentru autentificare)
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRole(UserRole.EMPLOYEE);
-        user.setEmployeeId(savedEmployee.getId()); // Legătura către Employee
+        user.setEmployeeId(savedEmployee.getId());
         user.setActive(true);
 
         return userRepository.save(user);

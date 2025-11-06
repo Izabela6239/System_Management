@@ -1,11 +1,14 @@
 package com.example.app.managementapi.ManagementApiApplication.repository;
 
 import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
+import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
@@ -20,4 +23,24 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
        order by a.finishedAt desc
     """)
     List<Assignment> findRecentFinished(Long employeeId, Pageable pageable);
+    List<Assignment> findByTaskId(Long taskId);
+    Optional<Assignment> findByTaskIdAndEmployeeId(Long taskId, Long employeeId);
+    boolean existsByTaskIdAndEmployeeId(Long taskId, Long employeeId);
+    boolean existsByTaskId(Long taskId);
+
+    @Query("SELECT a FROM Assignment a WHERE a.employee.id = :employeeId AND a.task.status = :status")
+    List<Assignment> findByEmployeeIdAndTaskStatus(@Param("employeeId") Long employeeId,
+                                                   @Param("status") TaskStatus status);
+
+    @Query("SELECT a FROM Assignment a WHERE a.task.admin.id = :adminId")
+    List<Assignment> findByAdminId(@Param("adminId") Long adminId);
+
+    @Query("""
+    SELECT a FROM Assignment a
+    WHERE a.employee.id = :employeeId
+    AND MONTH(a.finishedAt) = :month
+    AND YEAR(a.finishedAt) = YEAR(CURRENT_DATE)
+""")
+    List<Assignment> findByEmployeeIdAndFinishedAtYearMonth(Long employeeId, int month);
+
 }

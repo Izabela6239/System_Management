@@ -9,27 +9,20 @@ import com.example.app.managementapi.ManagementApiApplication.mapper.LeaveReques
 import com.example.app.managementapi.ManagementApiApplication.repository.AdminRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.LeaveRequestRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class LeaveRequestService {
 
-    @Autowired
-    private LeaveRequestRepository leaveRequestRepository;
-
-    @Autowired
-    private EmployeeRepository employeeRepository;
-
-    @Autowired
-    private AdminRepository adminRepository;
-
-    @Autowired
-    //avem autowired pentru ca springboot face injectarea dependentei direct
-    //altfekl foloseam private final + constructor
-    private LeaveRequestMapper leaveRequestMapper;
+    private final LeaveRequestRepository leaveRequestRepository;
+    private final EmployeeRepository employeeRepository;
+    private final AdminRepository adminRepository;
+    private final LeaveRequestMapper leaveRequestMapper;
 
 
     public LeaveRequest createLeaveRequest(LeaveRequestDTO dto) {
@@ -44,24 +37,19 @@ public class LeaveRequestService {
         return leaveRequestRepository.save(leaveRequest);
     }
 
-
-    // Creează cerere nouă
     public LeaveRequest createLeaveRequest(LeaveRequest leaveRequest) {
         leaveRequest.setStatus(leaveRequest.getStatus() != null ? leaveRequest.getStatus() : LeaveStatus.PENDING);
         return leaveRequestRepository.save(leaveRequest);
     }
 
-    // Obține cererile unui angajat
     public List<LeaveRequest> getLeaveRequestsForEmployee(Employee employee) {
         return leaveRequestRepository.findByEmployee(employee);
     }
 
-    // Obține toate cererile (pentru admin)
     public List<LeaveRequest> getAllLeaveRequests() {
         return leaveRequestRepository.findAll();
     }
 
-    // Actualizează cererea (admin aprobare/respingere)
     public LeaveRequest updateLeaveRequest(LeaveRequest leaveRequest) {
         return leaveRequestRepository.save(leaveRequest);
     }

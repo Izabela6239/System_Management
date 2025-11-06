@@ -26,7 +26,7 @@ public class ExistingDataMigrator implements CommandLineRunner {
     public void run(String... args) throws Exception {
         System.out.println("=== MIGRATING EXISTING DATA ===");
 
-        // Migrează Admini existenți
+
         List<Admin> existingAdmins = adminRepository.findAll();
         for (Admin admin : existingAdmins) {
             if (userRepository.findByUsername(admin.getUsername()).isEmpty()) {
@@ -41,15 +41,15 @@ public class ExistingDataMigrator implements CommandLineRunner {
             }
         }
 
-        // Migrează Employees existenți
+
         List<Employee> existingEmployees = employeeRepository.findAll();
         for (Employee employee : existingEmployees) {
-            // Creează username pentru employee (dacă nu are)
-            String username = employee.getEmail(); // Sau alt identificator
+
+            String username = employee.getEmail();
             if (userRepository.findByUsername(username).isEmpty()) {
                 User user = new User();
                 user.setUsername(username);
-                user.setPassword(employee.getPassword()); // Sau passwordEncoder.encode()
+                user.setPassword(employee.getPassword());
                 user.setRole(UserRole.EMPLOYEE);
                 user.setEmployeeId(employee.getId());
                 user.setActive(employee.getActive());

@@ -29,7 +29,7 @@ public class Assignment {
     private java.time.LocalDateTime startedAt;
     private java.time.LocalDateTime finishedAt;
     private Integer actualDurationMin;
-    private Integer adminGrade; // 0..10
+    private Integer adminGrade;
     private Boolean valid = true;
 
     public Long getId() {
