@@ -13,13 +13,12 @@ export type TaskStatus =
 export interface AdminTask {
     id: number;
     title: string;
-    status: TaskStatus;
-    priority?: number;
+    status: string;
+    priority: number;
     deadline?: string;
-    // opțional: difficulty/grade/profit dacă există în modelul tău
     difficulty?: number;
-    grade?: number;
-    profit?: number;
+    revenue?: number;
+    otherCosts?: number;
 }
 
 export interface AdminUser {
@@ -135,12 +134,12 @@ export const assignTaskToMe = async (taskId: number): Promise<AdminTask> => {
 
 export const getUnassignedTasks = async (): Promise<AdminTask[]> => {
     const { data } = await axios.get(`${base}/unassigned-tasks`);
-    return data ?? [];
+    return Array.isArray(data) ? data : [];
 };
 
 export const getMyTasks = async (): Promise<AdminTask[]> => {
     const { data } = await axios.get(`${base}/my-tasks`);
-    return data ?? [];
+    return Array.isArray(data) ? data : [];
 };
 
 /* ========== REPORTS ========== */
