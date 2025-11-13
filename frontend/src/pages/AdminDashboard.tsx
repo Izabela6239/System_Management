@@ -18,24 +18,51 @@ type View = "EMPLOYEES" | "TASKS_UNASSIGNED" | "MY_TASKS" | "ASSIGNMENTS" | "REP
 export default function AdminDashboard() {
     const [view, setView] = useState<View>("TASKS_UNASSIGNED");
 
+    // ===== State init =====
     const [employees, setEmployees] = useState<AdminUser[]>([]);
     const [unassignedTasks, setUnassignedTasks] = useState<AdminTask[]>([]);
     const [myTasks, setMyTasks] = useState<AdminTask[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [report, setReport] = useState<MonthlyReport | null>(null);
 
-    // bootstrap
+    // ===== Bootstrap =====
     useEffect(() => {
         refreshEmployees();
         refreshUnassigned();
         refreshMyTasks();
     }, []);
 
-    const refreshEmployees = async () => setEmployees(await getEmployees());
-    const refreshUnassigned = async () => setUnassignedTasks(await getUnassignedTasks());
-    const refreshMyTasks = async () => setMyTasks(await getMyTasks());
+    const refreshEmployees = async () => {
+        try {
+            const data = await getEmployees();
+            setEmployees(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading employees:", err);
+            setEmployees([]);
+        }
+    };
 
-    // ===== Employees CRUD (demo prompts) =====
+    const refreshUnassigned = async () => {
+        try {
+            const data = await getUnassignedTasks();
+            setUnassignedTasks(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading unassigned tasks:", err);
+            setUnassignedTasks([]);
+        }
+    };
+
+    const refreshMyTasks = async () => {
+        try {
+            const data = await getMyTasks();
+            setMyTasks(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Error loading my tasks:", err);
+            setMyTasks([]);
+        }
+    };
+
+    // ===== Employees CRUD =====
     const onAddEmployee = async () => {
         const name = prompt("name?");
         const email = prompt("email?");
@@ -123,7 +150,7 @@ export default function AdminDashboard() {
         const employeeId = Number(prompt("employeeId to view assignments?"));
         if (!employeeId) return;
         const data = await getAssignmentsByEmployee(employeeId);
-        setAssignments(data);
+        setAssignments(Array.isArray(data) ? data : []);
         setView("ASSIGNMENTS");
     };
 
@@ -134,22 +161,26 @@ export default function AdminDashboard() {
         const month = Number(prompt("Month (1-12)?"));
         if (!employeeId || !year || !month) return;
         const data = await generateMonthlyReport(employeeId, year, month);
-        setReport(data);
+        setReport(data || null);
         setView("REPORTS");
     };
 
     // ===== Stats + Charts =====
     const taskStats = useMemo(() => ({
-        unassigned: unassignedTasks.length,
-        myTasks: myTasks.length,
-        highPriority: unassignedTasks.filter(t => (t.priority ?? 0) >= 4).length,
-        dueThisWeek: unassignedTasks.filter(t => {
-            if (!t.deadline) return false;
-            const d = new Date(t.deadline);
-            const now = new Date();
-            const diff = (d.getTime() - now.getTime()) / (1000 * 3600 * 24);
-            return diff >= 0 && diff <= 7;
-        }).length,
+        unassigned: Array.isArray(unassignedTasks) ? unassignedTasks.length : 0,
+        myTasks: Array.isArray(myTasks) ? myTasks.length : 0,
+        highPriority: Array.isArray(unassignedTasks)
+            ? unassignedTasks.filter(t => (t.priority ?? 0) >= 4).length
+            : 0,
+        dueThisWeek: Array.isArray(unassignedTasks)
+            ? unassignedTasks.filter(t => {
+                if (!t.deadline) return false;
+                const d = new Date(t.deadline);
+                const now = new Date();
+                const diff = (d.getTime() - now.getTime()) / (1000 * 3600 * 24);
+                return diff >= 0 && diff <= 7;
+            }).length
+            : 0,
     }), [unassignedTasks, myTasks]);
 
     const donutData = [
@@ -158,40 +189,48 @@ export default function AdminDashboard() {
         { name: "High Priority", value: taskStats.highPriority },
     ];
 
-    const lineBarData = (unassignedTasks.slice(0, 10)).map(t => ({
-        name: t.title,
-        progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20
-    }));
+    const lineBarData = Array.isArray(unassignedTasks)
+        ? unassignedTasks.slice(0, 10).map(t => ({
+            name: t.title,
+            progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20
+        }))
+        : [];
 
     // ===== Table rows by view =====
     const rows = useMemo(() => {
         if (view === "TASKS_UNASSIGNED") {
-            return unassignedTasks.map(t => ({
-                code: String(t.id),
-                start: t.title,
-                end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                warning: (t.priority ?? 0) >= 4 ? "High Priority" : "",
-                progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
-                onRowClick: () => onAssignToMe(t.id),
-            }));
+            return Array.isArray(unassignedTasks)
+                ? unassignedTasks.map(t => ({
+                    code: String(t.id),
+                    start: t.title,
+                    end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
+                    warning: (t.priority ?? 0) >= 4 ? "High Priority" : "",
+                    progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
+                    onRowClick: () => onAssignToMe(t.id),
+                }))
+                : [];
         }
         if (view === "MY_TASKS") {
-            return myTasks.map(t => ({
-                code: String(t.id),
-                start: t.title,
-                end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                warning: "",
-                progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
-            }));
+            return Array.isArray(myTasks)
+                ? myTasks.map(t => ({
+                    code: String(t.id),
+                    start: t.title,
+                    end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
+                    warning: "",
+                    progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
+                }))
+                : [];
         }
         if (view === "ASSIGNMENTS") {
-            return assignments.map(a => ({
-                code: String(a.id),
-                start: `Task #${a.taskId}`,
-                end: `Emp #${a.employeeId}`,
-                warning: `Admin #${a.adminId}`,
-                progress: 100,
-            }));
+            return Array.isArray(assignments)
+                ? assignments.map(a => ({
+                    code: String(a.id),
+                    start: `Task #${a.taskId}`,
+                    end: `Emp #${a.employeeId}`,
+                    warning: `Admin #${a.adminId}`,
+                    progress: 100,
+                }))
+                : [];
         }
         if (view === "REPORTS" && report) {
             return [{
@@ -203,15 +242,18 @@ export default function AdminDashboard() {
             }];
         }
         // EMPLOYEES
-        return employees.map((e) => ({
-            code: String(e.id),
-            start: e.name || e.username,         // name e opțional
-            end: e.email || "",                  // email e opțional
-            warning: e.active ? "active" : "inactive",
-            progress: 100,
-        }));
+        return Array.isArray(employees)
+            ? employees.map((e) => ({
+                code: String(e.id),
+                start: e.name || e.username,
+                end: e.email || "",
+                warning: e.active ? "active" : "inactive",
+                progress: 100,
+            }))
+            : [];
     }, [view, unassignedTasks, myTasks, assignments, report, employees]);
 
+    // ===== Render =====
     return (
         <AdminLayout>
             <div className="flex h-full">
@@ -230,7 +272,6 @@ export default function AdminDashboard() {
                     <button className="btn w-full" onClick={onEditEmployee}>Edit…</button>
                     <button className="btn w-full" onClick={onDeleteEmployee}>Delete…</button>
 
-                    {/* Import XML */}
                     <label className="btn w-full cursor-pointer">
                         Import XML
                         <input type="file" accept=".xml" hidden onChange={onImportXml} />
@@ -249,7 +290,6 @@ export default function AdminDashboard() {
                 <div className="flex-1 p-6 space-y-6 overflow-auto">
                     <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
 
-                    {/* Stats */}
                     <div className="grid grid-cols-4 gap-4">
                         <StatCard title="Unassigned" value={taskStats.unassigned} />
                         <StatCard title="My Tasks" value={taskStats.myTasks} />
@@ -257,7 +297,6 @@ export default function AdminDashboard() {
                         <StatCard title="Due ≤ 7 days" value={taskStats.dueThisWeek} />
                     </div>
 
-                    {/* Charts */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="lg:col-span-2">
                             <LineBarCombo data={lineBarData} />
@@ -265,7 +304,6 @@ export default function AdminDashboard() {
                         <Donut data={donutData} />
                     </div>
 
-                    {/* Table */}
                     <ProgressTable rows={rows} />
                 </div>
             </div>
