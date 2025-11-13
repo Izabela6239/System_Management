@@ -26,7 +26,7 @@ import java.util.List;
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
-public class ControllerForAdmin {
+public class    ControllerForAdmin {
 
     private final ServiceForAdmin assignmentService;
     private final AdminRepository adminRepository;
