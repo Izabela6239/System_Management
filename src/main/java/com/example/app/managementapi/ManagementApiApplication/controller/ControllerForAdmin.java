@@ -1,6 +1,8 @@
 package com.example.app.managementapi.ManagementApiApplication.controller;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
+import com.example.app.managementapi.ManagementApiApplication.dto.TaskDto;
+import com.example.app.managementapi.ManagementApiApplication.mapper.TaskMapper;
 import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
 import com.example.app.managementapi.ManagementApiApplication.entity.MonthlyReport;
@@ -101,32 +103,35 @@ public class    ControllerForAdmin {
 
 
     @PostMapping("/assign-task-to-me")
-    public Task assignTaskToCurrentAdmin(@RequestParam Long taskId,
-                                         Authentication authentication) {
+    public TaskDto assignTaskToCurrentAdmin(@RequestParam Long taskId,
+                                            Authentication authentication) {
+
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+                .orElseThrow();
         Admin admin = adminRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Admin not found for user: " + username));
+                .orElseThrow();
 
-        return assignmentService.assignTaskToAdmin(taskId, admin.getId());
+        return TaskMapper.toDto(assignmentService.assignTaskToAdmin(taskId, admin.getId()));
     }
 
 
     @GetMapping("/unassigned-tasks")
-    public List<Task> getUnassignedTasks() {
-        return assignmentService.getUnassignedTasks();
+    public List<TaskDto> getUnassignedTasks() {
+        return assignmentService.getUnassignedTasks()
+                .stream().map(TaskMapper::toDto).toList();
     }
 
     @GetMapping("/my-tasks")
-    public List<Task> getMyTasks(Authentication authentication) {
+    public List<TaskDto> getMyTasks(Authentication authentication) {
         String username = authentication.getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found: " + username));
         Admin admin = adminRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Admin not found for user: " + username));
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
 
-        return assignmentService.getTasksByAdmin(admin.getId());
+        return assignmentService.getTasksByAdmin(admin.getId())
+                .stream().map(TaskMapper::toDto).toList();
     }
 
     // ===== TASK MGMT =====
