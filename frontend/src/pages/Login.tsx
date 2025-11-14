@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/AuthService";
-import axios from "axios";
 
 export default function Login() {
     const navigate = useNavigate();
@@ -21,32 +20,13 @@ export default function Login() {
             localStorage.setItem("role", data.role);
             localStorage.setItem("userId", String(data.userId));
 
-            navigate("/admin");
-        } catch (err: any) {
-            console.error("Eroare login:", err); // Vezi detalii în consolă
-
-            // Verificăm tipul erorii Axios
-            if (axios.isAxiosError(err)) {
-                if (err.response) {
-                    // Server-ul a răspuns cu un status diferit de 2xx
-                    setError(
-                        `Eroare server: ${err.response.status} - ${
-                            JSON.stringify(err.response.data) || err.response.statusText
-                        }`
-                    );
-                } else if (err.request) {
-                    // Cererea a fost trimisă, dar nu a venit răspuns
-                    setError(
-                        "Serverul nu a răspuns. Verifică conexiunea, URL-ul sau politica CORS."
-                    );
-                } else {
-                    // Alt tip de eroare Axios
-                    setError(`Eroare Axios: ${err.message}`);
-                }
+            if (data.role === "ADMIN") {
+                navigate("/admin");
             } else {
-                // Alt tip de eroare neașteptată
-                setError(`Eroare neașteptată: ${err.message || err}`);
+                navigate("/dashboard");
             }
+        } catch (err) {
+            setError("Invalid username or password");
         }
     };
 
