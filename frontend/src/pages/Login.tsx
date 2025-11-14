@@ -21,7 +21,7 @@ export default function Login() {
             localStorage.setItem("role", data.role);
             localStorage.setItem("userId", String(data.userId));
 
-            navigate("/dashboard");
+            navigate("/admin");
         } catch (err: any) {
             console.error("Eroare login:", err); // Vezi detalii în consolă
 

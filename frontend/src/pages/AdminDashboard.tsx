@@ -249,142 +249,182 @@ export default function AdminDashboard() {
 
     return (
         <AdminLayout>
-            <div className="flex h-full">
-                {/* Sidebar */}
-                <div className="w-64 p-4 bg-gray-100 space-y-2">
-                    <h2 className="font-semibold mb-2">Admin Actions</h2>
-
-                    <div className="text-xs uppercase text-gray-500">Tasks</div>
-                    <button className="btn w-full" onClick={() => setView("TASKS_UNASSIGNED")}>Unassigned</button>
-                    <button className="btn w-full" onClick={() => setView("MY_TASKS")}>My Tasks</button>
-                    <button className="btn w-full" onClick={() => open("ASSIGN_TO_ME")}>Assign task to me…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Employees</div>
-                    <button className="btn w-full" onClick={() => setView("EMPLOYEES")}>List</button>
-                    <button className="btn w-full" onClick={() => open("ADD_EMP")}>Add…</button>
-                    <button className="btn w-full" onClick={() => open("EDIT_EMP")}>Edit…</button>
-                    <button className="btn w-full" onClick={() => open("DEL_EMP")}>Delete…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Import</div>
-                    <button className="btn w-full" onClick={() => open("IMPORT_XML")}>Import XML…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Assignments</div>
-                    <button className="btn w-full" onClick={() => open("ASSIGN")}>Assign to employee…</button>
-                    <button className="btn w-full" onClick={() => open("UNASSIGN")}>Unassign…</button>
-                    <button className="btn w-full" onClick={() => open("VIEW_ASSIGNMENTS")}>View for employee…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Reports</div>
-                    <button className="btn w-full" onClick={() => open("GENERATE_REPORT")}>Generate monthly…</button>
-                </div>
-
-                {/* Main */}
-                <div className="flex-1 p-6 space-y-6 overflow-auto">
-                    <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-4 gap-4">
-                        <StatCard title="Unassigned" value={taskStats.unassigned} />
-                        <StatCard title="My Tasks" value={taskStats.myTasks} />
-                        <StatCard title="High Priority" value={taskStats.highPriority} />
-                        <StatCard title="Due ≤ 7 days" value={taskStats.dueThisWeek} />
-                    </div>
-
-                    {/* Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        <div className="lg:col-span-2">
-                            <LineBarCombo data={lineBarData} />
-                        </div>
-                        <Donut data={donutData} />
-                    </div>
-
-                    {/* Table */}
-                    <ProgressTable rows={rows} />
+            {/* Top toolbar tabs */}
+            <div className="flex items-center gap-2 mb-4">
+                <button className={`chip ${view==="TASKS_UNASSIGNED"?"chip--active":""}`} onClick={()=>setView("TASKS_UNASSIGNED")}>Tasks</button>
+                <button className={`chip ${view==="EMPLOYEES"?"chip--active":""}`} onClick={()=>setView("EMPLOYEES")}>Employees</button>
+                <button className={`chip ${view==="ASSIGNMENTS"?"chip--active":""}`} onClick={()=>setView("ASSIGNMENTS")}>Assignments</button>
+                <button className={`chip ${view==="REPORTS"?"chip--active":""}`} onClick={()=>setView("REPORTS")}>Reports</button>
+                <div className="ml-auto flex gap-2">
+                    {view === "EMPLOYEES" && (
+                        <>
+                            <button className="btn" onClick={()=>open("ADD_EMP")}>Add employee</button>
+                            <button className="btn" onClick={()=>open("IMPORT_XML")}>Import XML</button>
+                        </>
+                    )}
+                    {view === "TASKS_UNASSIGNED" && (
+                        <button className="btn" onClick={()=>open("ASSIGN_TO_ME")}>Assign to me…</button>
+                    )}
+                    {view === "ASSIGNMENTS" && (
+                        <button className="btn" onClick={()=>open("VIEW_ASSIGNMENTS")}>View by employee…</button>
+                    )}
+                    {view === "REPORTS" && (
+                        <button className="btn" onClick={()=>open("GENERATE_REPORT")}>Generate monthly…</button>
+                    )}
                 </div>
             </div>
 
-            {/* ===== Modals ===== */}
-
-            {/* ADD EMPLOYEE */}
-            <Modal open={modal === "ADD_EMP"} title="Adaugă angajat" onClose={close} onSubmit={submitAddEmployee} submitLabel="Adaugă">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Nume" value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})}/>
-                    <input className="input" placeholder="Email" value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})}/>
-                    <input className="input" placeholder="Username" value={form.username||""} onChange={e=>setForm({...form,username:e.target.value})}/>
-                    <input className="input" placeholder="Parolă" type="password" value={form.password||""} onChange={e=>setForm({...form,password:e.target.value})}/>
+            {/* Content switch */}
+            {view === "EMPLOYEES" && (
+                <div className="card">
+                    <div className="card__header">Employees</div>
+                    <div className="overflow-auto">
+                        <table className="table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name / Username</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th style={{width:160}}>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {employees.map(e => (
+                                <tr key={e.id}>
+                                    <td>{e.id}</td>
+                                    <td>{e.name || e.username}</td>
+                                    <td>{e.email}</td>
+                                    <td>
+                                        <span className={`badge ${e.active?"badge--ok":"badge--muted"}`}>{e.active?"active":"inactive"}</span>
+                                    </td>
+                                    <td className="flex gap-2">
+                                        <button className="btn" onClick={()=>open("EDIT_EMP", { id: e.id, name: e.name, email: e.email, username: e.username, active: e.active })}>Edit</button>
+                                        <button className="btn btn--danger" onClick={()=>open("DEL_EMP", { id: e.id })}>Delete</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* EDIT EMPLOYEE */}
-            <Modal open={modal === "EDIT_EMP"} title="Editează angajat" onClose={close} onSubmit={submitEditEmployee} submitLabel="Salvează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="ID" value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})}/>
-                    <select className="input" value={form.active ?? ""} onChange={e=>setForm({...form,active:e.target.value})}>
-                        <option value="">Active? (opțional)</option>
-                        <option value="true">Da</option>
-                        <option value="false">Nu</option>
-                    </select>
-                    <input className="input" placeholder="Nume (opţional)" value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})}/>
-                    <input className="input" placeholder="Email (opţional)" value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})}/>
-                    <input className="input col-span-2" placeholder="Username (opţional)" value={form.username||""} onChange={e=>setForm({...form,username:e.target.value})}/>
+            {view === "TASKS_UNASSIGNED" && (
+                <div className="card">
+                    <div className="card__header">Unassigned tasks</div>
+                    <div className="overflow-auto">
+                        <table className="table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Deadline</th>
+                                <th>Priority</th>
+                                <th style={{width:160}}>Actions</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {unassignedTasks.map(t => (
+                                <tr key={t.id}>
+                                    <td>{t.id}</td>
+                                    <td>{t.title}</td>
+                                    <td>{t.deadline ? new Date(t.deadline).toLocaleDateString() : ""}</td>
+                                    <td>{t.priority ?? 0}</td>
+                                    <td className="flex gap-2">
+                                        <button className="btn" onClick={()=>open("ASSIGN_TO_ME", { taskId: t.id })}>Assign to me</button>
+                                        <button className="btn" onClick={()=>open("ASSIGN", { taskId: t.id })}>Assign to employee</button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* DELETE EMPLOYEE */}
-            <Modal open={modal === "DEL_EMP"} title="Șterge angajat" onClose={close} onSubmit={submitDeleteEmployee} submitLabel="Șterge">
-                <input className="input" placeholder="ID angajat" value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})}/>
-                <p className="text-sm text-red-600">Atenție: acțiune ireversibilă.</p>
-            </Modal>
-
-            {/* ASSIGN TASK */}
-            <Modal open={modal === "ASSIGN"} title="Asignează task la angajat" onClose={close} onSubmit={submitAssign} submitLabel="Asignează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
+            {view === "MY_TASKS" && (
+                <div className="card">
+                    <div className="card__header">My tasks</div>
+                    <div className="overflow-auto">
+                        <table className="table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Deadline</th>
+                                <th>Status</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {myTasks.map(t => (
+                                <tr key={t.id}>
+                                    <td>{t.id}</td>
+                                    <td>{t.title}</td>
+                                    <td>{t.deadline ? new Date(t.deadline).toLocaleDateString() : ""}</td>
+                                    <td>{t.status}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* UNASSIGN */}
-            <Modal open={modal === "UNASSIGN"} title="Dezasignează task" onClose={close} onSubmit={submitUnassign} submitLabel="Dezasignează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
+            {view === "ASSIGNMENTS" && (
+                <div className="card">
+                    <div className="card__header">Assignments</div>
+                    <div className="overflow-auto">
+                        <table className="table">
+                            <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Task</th>
+                                <th>Employee</th>
+                                <th>By Admin</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {assignments.map(a => (
+                                <tr key={a.id}>
+                                    <td>{a.id}</td>
+                                    <td>#{a.taskId}</td>
+                                    <td>#{a.employeeId}</td>
+                                    <td>#{a.adminId}</td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* ASSIGN TO ME */}
-            <Modal open={modal === "ASSIGN_TO_ME"} title="Asignează task către mine" onClose={close} onSubmit={submitAssignToMe} submitLabel="Asignează mie">
-                <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
-            </Modal>
-
-            {/* VIEW ASSIGNMENTS FOR EMPLOYEE */}
-            <Modal open={modal === "VIEW_ASSIGNMENTS"} title="Vezi asignările unui angajat" onClose={close} onSubmit={submitViewAssignments} submitLabel="Afișează">
-                <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
-            </Modal>
-
-            {/* GENERATE REPORT */}
-            <Modal open={modal === "GENERATE_REPORT"} title="Generează raport lunar" onClose={close} onSubmit={submitGenerateReport} submitLabel="Generează">
-                <div className="grid grid-cols-3 gap-3">
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
-                    <input className="input" placeholder="An" value={form.year||""} onChange={e=>setForm({...form,year:e.target.value})}/>
-                    <input className="input" placeholder="Lună (1-12)" value={form.month||""} onChange={e=>setForm({...form,month:e.target.value})}/>
+            {view === "REPORTS" && report && (
+                <div className="card">
+                    <div className="card__header">Monthly report</div>
+                    <div className="p-4">
+                        <p><strong>Employee:</strong> #{report.employeeId}</p>
+                        <p><strong>Period:</strong> {report.year}-{String(report.month).padStart(2, "0")}</p>
+                        <p><strong>Generated:</strong> {new Date(report.generatedAt).toLocaleString()}</p>
+                        <p><strong>Completed:</strong> {report.completedTasks}/{report.totalTasks}</p>
+                    </div>
                 </div>
-            </Modal>
+            )}
 
-            {/* IMPORT XML */}
-            <Modal open={modal === "IMPORT_XML"} title="Importă utilizatori din XML" onClose={close} onSubmit={submitImportXml} submitLabel="Importă">
-                <input
-                    className="input"
-                    type="file"
-                    accept=".xml"
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, file: e.target.files?.[0] })}
-                />
-                {form.file && <p className="text-sm text-gray-500">Fișier selectat: {form.file.name}</p>}
-            </Modal>
+            {/* existing charts + stats below (optional, you can keep) */}
 
-            {/* Tiny Tailwind-y inputs */}
+            {/* Tiny Tailwind utility styles */}
             <style>{`
-        .btn{ @apply inline-flex items-center justify-center rounded-xl bg-white px-3 py-2 shadow-sm hover:bg-gray-50 border border-gray-200; }
-        .input{ @apply w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-200; }
+        .chip{ @apply inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm bg-white hover:bg-gray-50; }
+        .chip--active{ @apply bg-indigo-50 border-indigo-200 text-indigo-700; }
+        .card{ @apply rounded-2xl border border-gray-200 bg-white shadow-sm; }
+        .card__header{ @apply px-4 py-3 border-b border-gray-200 font-medium; }
+        .table{ @apply w-full text-sm; }
+        .table th{ @apply text-left bg-gray-50 font-medium px-3 py-2; }
+        .table td{ @apply px-3 py-2 border-t; }
+        .badge{ @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs; }
+        .badge--ok{ @apply bg-green-100 text-green-700; }
+        .badge--muted{ @apply bg-gray-100 text-gray-600; }
       `}</style>
         </AdminLayout>
     );
