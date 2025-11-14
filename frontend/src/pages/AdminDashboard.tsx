@@ -1,18 +1,42 @@
-import React, { useEffect, useMemo, useState, ChangeEvent, FormEvent } from "react";
-import AdminLayout from "../layouts/AdminLayout";
-import StatCard from "../components/ui/StatCard";
-import LineBarCombo from "../components/charts/LineBarCombo";
-import Donut from "../components/charts/Donut";
-import ProgressTable from "../components/tables/ProgressTable";
+// frontend/src/pages/admin/AdminDashboard.tsx
+import React, {
+    useEffect,
+    useMemo,
+    useState,
+    FormEvent,
+    ChangeEvent,
+} from "react";
 
 import {
-    getEmployees, createEmployee, updateEmployee, deleteEmployee,
-    getUnassignedTasks, getMyTasks, assignTaskToMe, assignTask, unassignTask,
-    generateMonthlyReport, getAssignmentsByEmployee, importEmployeesXml,
-    AdminTask, AdminUser, Assignment, MonthlyReport
+    getEmployees,
+    createEmployee,
+    updateEmployee,
+    deleteEmployee,
+    getUnassignedTasks,
+    getMyTasks,
+    assignTaskToMe,
+    assignTask,
+    unassignTask,
+    generateMonthlyReport,
+    getAssignmentsByEmployee,
+    importEmployeesXml,
+    AdminTask,
+    AdminUser,
+    Assignment,
+    MonthlyReport,
 } from "../services/AdminService";
 
-type View = "EMPLOYEES" | "TASKS_UNASSIGNED" | "MY_TASKS" | "ASSIGNMENTS" | "REPORTS";
+// !!! asigură-te că importurile către CSS sunt corecte:
+import "../assets/css/core.scss";
+import "../assets/css/demo.css";
+import "../assets/css/app-logistics-dashboard.css";
+
+type View =
+    | "TASKS_UNASSIGNED"
+    | "MY_TASKS"
+    | "EMPLOYEES"
+    | "ASSIGNMENTS"
+    | "REPORTS";
 
 type ModalType =
     | "NONE"
@@ -26,35 +50,61 @@ type ModalType =
     | "GENERATE_REPORT"
     | "IMPORT_XML";
 
+type TableRow = {
+    id: number;
+    col1: string;
+    col2: string;
+    col3: string;
+    col4: string;
+    actions?: React.ReactNode;
+};
+
 /*****************
  * Generic Modal *
  *****************/
-function Modal({ open, title, onClose, children, onSubmit, submitLabel = "Salvează" }: {
-    open: boolean; title: string; onClose: () => void; children: React.ReactNode;
-    onSubmit?: (e: FormEvent<HTMLFormElement>) => void; submitLabel?: string;
+function Modal({
+                   open,
+                   title,
+                   onClose,
+                   children,
+                   onSubmit,
+                   submitLabel = "Salvează",
+               }: {
+    open: boolean;
+    title: string;
+    onClose: () => void;
+    children: React.ReactNode;
+    onSubmit?: (e: FormEvent<HTMLFormElement>) => void;
+    submitLabel?: string;
 }) {
     if (!open) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* backdrop */}
-            <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-            {/* dialog */}
+        <div className="fixed inset-0 z-50 d-flex align-items-center justify-content-center">
+            <div className="position-absolute top-0 start-0 end-0 bottom-0 bg-dark bg-opacity-50" onClick={onClose} />
             <form
                 onSubmit={onSubmit}
-                className="relative w-[min(680px,96vw)] max-h-[90vh] overflow-auto rounded-2xl bg-white p-6 shadow-2xl"
+                className="position-relative bg-white rounded-3 shadow p-4"
+                style={{ width: "min(680px, 96vw)", maxHeight: "90vh", overflow: "auto" }}
             >
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold">{title}</h3>
-                    <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100">
-                        <span className="text-2xl leading-none">×</span>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h5 className="mb-0">{title}</h5>
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-light rounded-circle"
+                        onClick={onClose}
+                    >
+                        ×
                     </button>
                 </div>
-                <div className="space-y-4">{children}</div>
+                <div className="mb-3">{children}</div>
                 {onSubmit && (
-                    <div className="mt-6 flex items-center justify-end gap-3">
-                        <button type="button" className="rounded-xl bg-gray-100 px-4 py-2" onClick={onClose}>Anulează</button>
-                        <button type="submit" className="rounded-xl bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">{submitLabel}</button>
+                    <div className="d-flex justify-content-end gap-2">
+                        <button type="button" className="btn btn-outline-secondary" onClick={onClose}>
+                            Anulează
+                        </button>
+                        <button type="submit" className="btn btn-primary">
+                            {submitLabel}
+                        </button>
                     </div>
                 )}
             </form>
@@ -71,16 +121,19 @@ export default function AdminDashboard() {
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [report, setReport] = useState<MonthlyReport | null>(null);
 
-    // modal
     const [modal, setModal] = useState<ModalType>("NONE");
-
-    // small form state (per modal)
     const [form, setForm] = useState<any>({});
 
-    const open = (m: ModalType, initial?: any) => { setForm(initial || {}); setModal(m); };
-    const close = () => { setModal("NONE"); setForm({}); };
+    const open = (m: ModalType, initial?: any) => {
+        setForm(initial || {});
+        setModal(m);
+    };
+    const close = () => {
+        setModal("NONE");
+        setForm({});
+    };
 
-    // bootstrap
+    // bootstrap data
     useEffect(() => {
         refreshEmployees();
         refreshUnassigned();
@@ -91,11 +144,12 @@ export default function AdminDashboard() {
     const refreshUnassigned = async () => setUnassignedTasks(await getUnassignedTasks());
     const refreshMyTasks = async () => setMyTasks(await getMyTasks());
 
-    // ===== Actions (using modal form state) =====
+    /* ===== Actions ===== */
+
     const submitAddEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { name, email, username, password } = form;
-        if (!name || !email || !username || !password) return;
+        if (!username) return;
         await createEmployee({ name, email, username, password, active: true });
         await refreshEmployees();
         close();
@@ -117,7 +171,8 @@ export default function AdminDashboard() {
 
     const submitDeleteEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { id } = form; if (!id) return;
+        const { id } = form;
+        if (!id) return;
         await deleteEmployee(Number(id));
         await refreshEmployees();
         close();
@@ -125,7 +180,8 @@ export default function AdminDashboard() {
 
     const submitAssign = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { taskId, employeeId } = form; if (!taskId || !employeeId) return;
+        const { taskId, employeeId } = form;
+        if (!taskId || !employeeId) return;
         await assignTask(Number(taskId), Number(employeeId));
         await refreshUnassigned();
         close();
@@ -133,14 +189,16 @@ export default function AdminDashboard() {
 
     const submitUnassign = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { taskId, employeeId } = form; if (!taskId || !employeeId) return;
+        const { taskId, employeeId } = form;
+        if (!taskId || !employeeId) return;
         await unassignTask(Number(taskId), Number(employeeId));
         close();
     };
 
     const submitAssignToMe = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { taskId } = form; if (!taskId) return;
+        const { taskId } = form;
+        if (!taskId) return;
         await assignTaskToMe(Number(taskId));
         await Promise.all([refreshUnassigned(), refreshMyTasks()]);
         close();
@@ -148,7 +206,8 @@ export default function AdminDashboard() {
 
     const submitViewAssignments = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { employeeId } = form; if (!employeeId) return;
+        const { employeeId } = form;
+        if (!employeeId) return;
         const data = await getAssignmentsByEmployee(Number(employeeId));
         setAssignments(data);
         setView("ASSIGNMENTS");
@@ -157,8 +216,13 @@ export default function AdminDashboard() {
 
     const submitGenerateReport = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { employeeId, year, month } = form; if (!employeeId || !year || !month) return;
-        const data = await generateMonthlyReport(Number(employeeId), Number(year), Number(month));
+        const { employeeId, year, month } = form;
+        if (!employeeId || !year || !month) return;
+        const data = await generateMonthlyReport(
+            Number(employeeId),
+            Number(year),
+            Number(month)
+        );
         setReport(data);
         setView("REPORTS");
         close();
@@ -173,219 +237,591 @@ export default function AdminDashboard() {
         close();
     };
 
-    // ===== Stats + Charts =====
-    const taskStats = useMemo(() => ({
-        unassigned: unassignedTasks.length,
-        myTasks: myTasks.length,
-        highPriority: unassignedTasks.filter(t => (t.priority ?? 0) >= 4).length,
-        dueThisWeek: unassignedTasks.filter(t => {
-            if (!t.deadline) return false;
-            const d = new Date(t.deadline);
-            const now = new Date();
-            const diff = (d.getTime() - now.getTime()) / (1000 * 3600 * 24);
-            return diff >= 0 && diff <= 7;
-        }).length,
-    }), [unassignedTasks, myTasks]);
+    /* ===== Stats (pentru carduri) ===== */
 
-    const donutData = [
-        { name: "Unassigned", value: taskStats.unassigned },
-        { name: "My Tasks", value: taskStats.myTasks },
-        { name: "High Priority", value: taskStats.highPriority },
-    ];
+    const taskStats = useMemo(
+        () => ({
+            unassigned: unassignedTasks.length,
+            myTasks: myTasks.length,
+            highPriority: unassignedTasks.filter((t) => (t.priority ?? 0) >= 4).length,
+            totalEmployees: employees.length,
+        }),
+        [unassignedTasks, myTasks, employees]
+    );
 
-    const lineBarData = (unassignedTasks.slice(0, 10)).map(t => ({
-        name: t.title,
-        progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20
-    }));
+    /* ===== Tabel principal (în partea dreaptă) ===== */
 
-    // ===== Table rows by view =====
-    const rows = useMemo(() => {
+    const tableRows: TableRow[] = useMemo(() => {
         if (view === "TASKS_UNASSIGNED") {
-            return unassignedTasks.map(t => ({
-                code: String(t.id),
-                start: t.title,
-                end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                warning: (t.priority ?? 0) >= 4 ? "High Priority" : "",
-                progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
-                onRowClick: () => open("ASSIGN_TO_ME", { taskId: t.id }),
+            return unassignedTasks.map<TableRow>(t => ({
+                id: t.id,
+                col1: t.title,
+                col2: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
+                col3: t.status,
+                col4: `prio: ${t.priority ?? "-"}`,
+                actions: (
+                    <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => open("ASSIGN_TO_ME", { taskId: t.id })}
+                    >
+                        Assign to me
+                    </button>
+                ),
             }));
         }
+
         if (view === "MY_TASKS") {
-            return myTasks.map(t => ({
-                code: String(t.id),
-                start: t.title,
-                end: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                warning: "",
-                progress: t.status === "COMPLETED" ? 100 : t.status === "IN_PROGRESS" ? 60 : 20,
+            return myTasks.map<TableRow>(t => ({
+                id: t.id,
+                col1: t.title,
+                col2: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
+                col3: t.status,
+                col4: "",
+                actions: undefined,        // IMPORTANT: există, chiar dacă e undefined
             }));
         }
+
+        if (view === "EMPLOYEES") {
+            return employees.map<TableRow>(e => ({
+                id: e.id,
+                col1: e.name || e.username,
+                col2: e.email || "",
+                col3: e.active ? "Active" : "Inactive",
+                col4: "",
+                actions: undefined,
+            }));
+        }
+
         if (view === "ASSIGNMENTS") {
-            return assignments.map(a => ({
-                code: String(a.id),
-                start: `Task #${a.taskId}`,
-                end: `Emp #${a.employeeId}`,
-                warning: `Admin #${a.adminId}`,
-                progress: 100,
+            return assignments.map<TableRow>(a => ({
+                id: a.id,
+                col1: `Task #${a.taskId}`,
+                col2: `Emp #${a.employeeId}`,
+                col3: `Admin #${a.adminId}`,
+                col4: "",
+                actions: undefined,
             }));
         }
+
         if (view === "REPORTS" && report) {
             return [{
-                code: String(report.id),
-                start: `Emp #${report.employeeId} • ${report.year}-${String(report.month).padStart(2, "0")}`,
-                end: new Date(report.generatedAt).toLocaleString(),
-                warning: `Completed: ${report.completedTasks}/${report.totalTasks}`,
-                progress: report.totalTasks ? Math.round((report.completedTasks / report.totalTasks) * 100) : 0,
+                id: report.id,
+                col1: `Emp #${report.employeeId}`,
+                col2: `${report.year}-${String(report.month).padStart(2, "0")}`,
+                col3: `Completed: ${report.completedTasks}/${report.totalTasks}`,
+                col4: "",
+                actions: undefined,
             }];
         }
-        // EMPLOYEES
-        return employees.map((e) => ({
-            code: String(e.id),
-            start: e.name || e.username,
-            end: e.email || "",
-            warning: e.active ? "active" : "inactive",
-            progress: 100,
-        }));
+
+        return [];
     }, [view, unassignedTasks, myTasks, assignments, report, employees]);
 
+    /* ===== Render ===== */
+
     return (
-        <AdminLayout>
-            <div className="flex h-full">
-                {/* Sidebar */}
-                <div className="w-64 p-4 bg-gray-100 space-y-2">
-                    <h2 className="font-semibold mb-2">Admin Actions</h2>
-
-                    <div className="text-xs uppercase text-gray-500">Tasks</div>
-                    <button className="btn w-full" onClick={() => setView("TASKS_UNASSIGNED")}>Unassigned</button>
-                    <button className="btn w-full" onClick={() => setView("MY_TASKS")}>My Tasks</button>
-                    <button className="btn w-full" onClick={() => open("ASSIGN_TO_ME")}>Assign task to me…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Employees</div>
-                    <button className="btn w-full" onClick={() => setView("EMPLOYEES")}>List</button>
-                    <button className="btn w-full" onClick={() => open("ADD_EMP")}>Add…</button>
-                    <button className="btn w-full" onClick={() => open("EDIT_EMP")}>Edit…</button>
-                    <button className="btn w-full" onClick={() => open("DEL_EMP")}>Delete…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Import</div>
-                    <button className="btn w-full" onClick={() => open("IMPORT_XML")}>Import XML…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Assignments</div>
-                    <button className="btn w-full" onClick={() => open("ASSIGN")}>Assign to employee…</button>
-                    <button className="btn w-full" onClick={() => open("UNASSIGN")}>Unassign…</button>
-                    <button className="btn w-full" onClick={() => open("VIEW_ASSIGNMENTS")}>View for employee…</button>
-
-                    <div className="text-xs uppercase text-gray-500 mt-4">Reports</div>
-                    <button className="btn w-full" onClick={() => open("GENERATE_REPORT")}>Generate monthly…</button>
-                </div>
-
-                {/* Main */}
-                <div className="flex-1 p-6 space-y-6 overflow-auto">
-                    <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-4 gap-4">
-                        <StatCard title="Unassigned" value={taskStats.unassigned} />
-                        <StatCard title="My Tasks" value={taskStats.myTasks} />
-                        <StatCard title="High Priority" value={taskStats.highPriority} />
-                        <StatCard title="Due ≤ 7 days" value={taskStats.dueThisWeek} />
-                    </div>
-
-                    {/* Charts */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        <div className="lg:col-span-2">
-                            <LineBarCombo data={lineBarData} />
+        <div className="layout-wrapper layout-content-navbar">
+            <div className="layout-page">
+                {/* Navbar Vuexy-like */}
+                <nav className="layout-navbar navbar navbar-expand-lg navbar-light bg-light">
+                    <div className="container-fluid">
+                        <a className="navbar-brand" href="#">
+                            Platforma Admin
+                        </a>
+                        <div className="d-flex align-items-center gap-2">
+                            <span className="text-muted small me-3">Admin Panel</span>
+                            <button
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => {
+                                    localStorage.clear();
+                                    window.location.href = "/login";
+                                }}
+                            >
+                                Logout
+                            </button>
                         </div>
-                        <Donut data={donutData} />
                     </div>
+                </nav>
 
-                    {/* Table */}
-                    <ProgressTable rows={rows} />
+                <div className="d-flex" style={{ background: "#fafafa", minHeight: "calc(100vh - 64px)" }}>
+                    {/* Sidebar */}
+                    <aside
+                        className="bg-white border-end"
+                        style={{ width: 260, padding: 16 }}
+                    >
+                        <h5 className="mb-3">Admin</h5>
+
+                        <div className="mb-2 text-muted small text-uppercase">
+                            Task management
+                        </div>
+                        <div className="nav flex-column mb-3">
+                            <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "TASKS_UNASSIGNED" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => setView("TASKS_UNASSIGNED")}
+                            >
+                                Unassigned tasks
+                            </button>
+                            <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "MY_TASKS" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => setView("MY_TASKS")}
+                            >
+                                My tasks
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("ASSIGN")}
+                            >
+                                Assign task to employee…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("UNASSIGN")}
+                            >
+                                Unassign task…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("ASSIGN_TO_ME")}
+                            >
+                                Assign task to me…
+                            </button>
+                        </div>
+
+                        <div className="mb-2 text-muted small text-uppercase">
+                            Employees
+                        </div>
+                        <div className="nav flex-column mb-3">
+                            <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "EMPLOYEES" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => setView("EMPLOYEES")}
+                            >
+                                List employees
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("ADD_EMP")}
+                            >
+                                Add employee…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("EDIT_EMP")}
+                            >
+                                Edit employee…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("DEL_EMP")}
+                            >
+                                Delete employee…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("IMPORT_XML")}
+                            >
+                                Import XML…
+                            </button>
+                        </div>
+
+                        <div className="mb-2 text-muted small text-uppercase">
+                            Assignments & Reports
+                        </div>
+                        <div className="nav flex-column mb-3">
+                            <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "ASSIGNMENTS" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => setView("ASSIGNMENTS")}
+                            >
+                                View assignments
+                            </button>
+                            <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "REPORTS" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => open("GENERATE_REPORT")}
+                            >
+                                Generate monthly report…
+                            </button>
+                            <button
+                                className="btn w-100 text-start mb-1 btn-light"
+                                onClick={() => open("VIEW_ASSIGNMENTS")}
+                            >
+                                Assignments for employee…
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* Content */}
+                    <main className="flex-grow-1 p-4">
+                        {/* KPI cards – ca în screenshot */}
+                        <div className="row g-3 mb-4">
+                            <div className="col-md-3">
+                                <div className="card h-100">
+                                    <div className="card-body">
+                                        <small className="text-muted d-block">
+                                            Unassigned tasks
+                                        </small>
+                                        <h3 className="mb-0">{taskStats.unassigned}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-md-3">
+                                <div className="card h-100">
+                                    <div className="card-body">
+                                        <small className="text-muted d-block">My tasks</small>
+                                        <h3 className="mb-0">{taskStats.myTasks}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-md-3">
+                                <div className="card h-100">
+                                    <div className="card-body">
+                                        <small className="text-muted d-block">
+                                            High priority
+                                        </small>
+                                        <h3 className="mb-0">{taskStats.highPriority}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-md-3">
+                                <div className="card h-100">
+                                    <div className="card-body">
+                                        <small className="text-muted d-block">
+                                            Employees
+                                        </small>
+                                        <h3 className="mb-0">{taskStats.totalEmployees}</h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Card cu tabel – ca în screenshot */}
+                        <div className="card">
+                            <div className="card-header d-flex justify-content-between align-items-center">
+                                <h5 className="mb-0">
+                                    {view === "TASKS_UNASSIGNED" && "Unassigned tasks"}
+                                    {view === "MY_TASKS" && "My tasks"}
+                                    {view === "EMPLOYEES" && "Employees"}
+                                    {view === "ASSIGNMENTS" && "Assignments"}
+                                    {view === "REPORTS" && "Reports"}
+                                </h5>
+                            </div>
+                            <div className="card-body">
+                                {tableRows.length === 0 ? (
+                                    <div className="text-muted">Nu există înregistrări.</div>
+                                ) : (
+                                    <div className="table-responsive">
+                                        <table className="table table-hover">
+                                            <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Col 1</th>
+                                                <th>Col 2</th>
+                                                <th>Col 3</th>
+                                                <th>Col 4</th>
+                                                <th>Acțiuni</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {tableRows.map((row) => (
+                                                <tr key={row.id}>
+                                                    <td>{row.id}</td>
+                                                    <td>{row.col1}</td>
+                                                    <td>{row.col2}</td>
+                                                    <td>{row.col3}</td>
+                                                    <td>{row.col4}</td>
+                                                    <td>{row.actions ?? <span className="text-muted">—</span>}</td>
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </main>
                 </div>
             </div>
 
-            {/* ===== Modals ===== */}
+            {/* === Modals === */}
 
             {/* ADD EMPLOYEE */}
-            <Modal open={modal === "ADD_EMP"} title="Adaugă angajat" onClose={close} onSubmit={submitAddEmployee} submitLabel="Adaugă">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Nume" value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})}/>
-                    <input className="input" placeholder="Email" value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})}/>
-                    <input className="input" placeholder="Username" value={form.username||""} onChange={e=>setForm({...form,username:e.target.value})}/>
-                    <input className="input" placeholder="Parolă" type="password" value={form.password||""} onChange={e=>setForm({...form,password:e.target.value})}/>
+            <Modal
+                open={modal === "ADD_EMP"}
+                title="Adaugă angajat"
+                onClose={close}
+                onSubmit={submitAddEmployee}
+                submitLabel="Adaugă"
+            >
+                <div className="row g-2">
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Nume"
+                            value={form.name || ""}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Email"
+                            value={form.email || ""}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Username"
+                            value={form.username || ""}
+                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            type="password"
+                            placeholder="Parolă"
+                            value={form.password || ""}
+                            onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        />
+                    </div>
                 </div>
             </Modal>
 
             {/* EDIT EMPLOYEE */}
-            <Modal open={modal === "EDIT_EMP"} title="Editează angajat" onClose={close} onSubmit={submitEditEmployee} submitLabel="Salvează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="ID" value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})}/>
-                    <select className="input" value={form.active ?? ""} onChange={e=>setForm({...form,active:e.target.value})}>
-                        <option value="">Active? (opțional)</option>
-                        <option value="true">Da</option>
-                        <option value="false">Nu</option>
-                    </select>
-                    <input className="input" placeholder="Nume (opţional)" value={form.name||""} onChange={e=>setForm({...form,name:e.target.value})}/>
-                    <input className="input" placeholder="Email (opţional)" value={form.email||""} onChange={e=>setForm({...form,email:e.target.value})}/>
-                    <input className="input col-span-2" placeholder="Username (opţional)" value={form.username||""} onChange={e=>setForm({...form,username:e.target.value})}/>
+            <Modal
+                open={modal === "EDIT_EMP"}
+                title="Editează angajat"
+                onClose={close}
+                onSubmit={submitEditEmployee}
+                submitLabel="Salvează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="ID"
+                            value={form.id || ""}
+                            onChange={(e) => setForm({ ...form, id: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <select
+                            className="form-select"
+                            value={form.active ?? ""}
+                            onChange={(e) => setForm({ ...form, active: e.target.value })}
+                        >
+                            <option value="">Active? (opțional)</option>
+                            <option value="true">Da</option>
+                            <option value="false">Nu</option>
+                        </select>
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="Username (opțional)"
+                            value={form.username || ""}
+                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Nume (opțional)"
+                            value={form.name || ""}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Email (opțional)"
+                            value={form.email || ""}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                    </div>
                 </div>
             </Modal>
 
             {/* DELETE EMPLOYEE */}
-            <Modal open={modal === "DEL_EMP"} title="Șterge angajat" onClose={close} onSubmit={submitDeleteEmployee} submitLabel="Șterge">
-                <input className="input" placeholder="ID angajat" value={form.id||""} onChange={e=>setForm({...form,id:e.target.value})}/>
-                <p className="text-sm text-red-600">Atenție: acțiune ireversibilă.</p>
+            <Modal
+                open={modal === "DEL_EMP"}
+                title="Șterge angajat"
+                onClose={close}
+                onSubmit={submitDeleteEmployee}
+                submitLabel="Șterge"
+            >
+                <input
+                    className="form-control mb-2"
+                    placeholder="ID angajat"
+                    value={form.id || ""}
+                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                />
+                <p className="text-danger small mb-0">
+                    Atenție: acțiune ireversibilă.
+                </p>
             </Modal>
 
             {/* ASSIGN TASK */}
-            <Modal open={modal === "ASSIGN"} title="Asignează task la angajat" onClose={close} onSubmit={submitAssign} submitLabel="Asignează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
+            <Modal
+                open={modal === "ASSIGN"}
+                title="Asignează task la angajat"
+                onClose={close}
+                onSubmit={submitAssign}
+                submitLabel="Asignează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Task ID"
+                            value={form.taskId || ""}
+                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Employee ID"
+                            value={form.employeeId || ""}
+                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                        />
+                    </div>
                 </div>
             </Modal>
 
             {/* UNASSIGN */}
-            <Modal open={modal === "UNASSIGN"} title="Dezasignează task" onClose={close} onSubmit={submitUnassign} submitLabel="Dezasignează">
-                <div className="grid grid-cols-2 gap-3">
-                    <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
+            <Modal
+                open={modal === "UNASSIGN"}
+                title="Dezasignează task"
+                onClose={close}
+                onSubmit={submitUnassign}
+                submitLabel="Dezasignează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Task ID"
+                            value={form.taskId || ""}
+                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Employee ID"
+                            value={form.employeeId || ""}
+                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                        />
+                    </div>
                 </div>
             </Modal>
 
             {/* ASSIGN TO ME */}
-            <Modal open={modal === "ASSIGN_TO_ME"} title="Asignează task către mine" onClose={close} onSubmit={submitAssignToMe} submitLabel="Asignează mie">
-                <input className="input" placeholder="Task ID" value={form.taskId||""} onChange={e=>setForm({...form,taskId:e.target.value})}/>
+            <Modal
+                open={modal === "ASSIGN_TO_ME"}
+                title="Asignează task către mine"
+                onClose={close}
+                onSubmit={submitAssignToMe}
+                submitLabel="Asignează mie"
+            >
+                <input
+                    className="form-control"
+                    placeholder="Task ID"
+                    value={form.taskId || ""}
+                    onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                />
             </Modal>
 
             {/* VIEW ASSIGNMENTS FOR EMPLOYEE */}
-            <Modal open={modal === "VIEW_ASSIGNMENTS"} title="Vezi asignările unui angajat" onClose={close} onSubmit={submitViewAssignments} submitLabel="Afișează">
-                <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
+            <Modal
+                open={modal === "VIEW_ASSIGNMENTS"}
+                title="Vezi asignările unui angajat"
+                onClose={close}
+                onSubmit={submitViewAssignments}
+                submitLabel="Afișează"
+            >
+                <input
+                    className="form-control"
+                    placeholder="Employee ID"
+                    value={form.employeeId || ""}
+                    onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                />
             </Modal>
 
             {/* GENERATE REPORT */}
-            <Modal open={modal === "GENERATE_REPORT"} title="Generează raport lunar" onClose={close} onSubmit={submitGenerateReport} submitLabel="Generează">
-                <div className="grid grid-cols-3 gap-3">
-                    <input className="input" placeholder="Employee ID" value={form.employeeId||""} onChange={e=>setForm({...form,employeeId:e.target.value})}/>
-                    <input className="input" placeholder="An" value={form.year||""} onChange={e=>setForm({...form,year:e.target.value})}/>
-                    <input className="input" placeholder="Lună (1-12)" value={form.month||""} onChange={e=>setForm({...form,month:e.target.value})}/>
+            <Modal
+                open={modal === "GENERATE_REPORT"}
+                title="Generează raport lunar"
+                onClose={close}
+                onSubmit={submitGenerateReport}
+                submitLabel="Generează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="Employee ID"
+                            value={form.employeeId || ""}
+                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="An"
+                            value={form.year || ""}
+                            onChange={(e) => setForm({ ...form, year: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="Lună (1-12)"
+                            value={form.month || ""}
+                            onChange={(e) => setForm({ ...form, month: e.target.value })}
+                        />
+                    </div>
                 </div>
             </Modal>
 
             {/* IMPORT XML */}
-            <Modal open={modal === "IMPORT_XML"} title="Importă utilizatori din XML" onClose={close} onSubmit={submitImportXml} submitLabel="Importă">
+            <Modal
+                open={modal === "IMPORT_XML"}
+                title="Importă utilizatori din XML"
+                onClose={close}
+                onSubmit={submitImportXml}
+                submitLabel="Importă"
+            >
                 <input
-                    className="input"
+                    className="form-control"
                     type="file"
                     accept=".xml"
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setForm({ ...form, file: e.target.files?.[0] })}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setForm({ ...form, file: e.target.files?.[0] })
+                    }
                 />
-                {form.file && <p className="text-sm text-gray-500">Fișier selectat: {form.file.name}</p>}
+                {form.file && (
+                    <p className="small text-muted mt-1">
+                        Fișier selectat: {form.file.name}
+                    </p>
+                )}
             </Modal>
-
-            {/* Tiny Tailwind-y inputs */}
-            <style>{`
-        .btn{ @apply inline-flex items-center justify-center rounded-xl bg-white px-3 py-2 shadow-sm hover:bg-gray-50 border border-gray-200; }
-        .input{ @apply w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-200; }
-      `}</style>
-        </AdminLayout>
+        </div>
     );
 }

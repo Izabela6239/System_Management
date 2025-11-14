@@ -20,7 +20,11 @@ export default function Login() {
             localStorage.setItem("role", data.role);
             localStorage.setItem("userId", String(data.userId));
 
-            navigate("/dashboard");
+            if (data.role === "ADMIN") {
+                navigate("/admin");
+            } else {
+                navigate("/dashboard");
+            }
         } catch (err) {
             setError("Invalid username or password");
         }
