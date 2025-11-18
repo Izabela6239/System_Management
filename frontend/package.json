@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build"
   },
   "dependencies": {
+    "@fullcalendar/daygrid": "^6.1.19",
+    "@fullcalendar/interaction": "^6.1.19",
+    "@fullcalendar/react": "^6.1.19",
     "apexcharts": "^4.7.0",
     "axios": "^1.7.4",
     "bootstrap": "^5.3.8",
@@ -27,6 +30,6 @@
     "sass": "^1.93.2",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
-    "vite": "^5.4.8"
+    "vite": "^7.2.2"
   }
 }

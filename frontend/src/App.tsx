@@ -9,6 +9,7 @@ import CreateLeavePage from "./pages/CreateLeavePage";
 import AdminDashboard from "./pages/AdminDashboard";
 import RequireAuth from "./routes/RequireAuth";
 import RequireRole from "./routes/RequireRole";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
 
 function App() {
     return (
@@ -16,36 +17,12 @@ function App() {
             {/* public */}
             <Route path="/login" element={<Login />} />
 
-            {/* employee area */}
+            {/* EMPLOYEE DASHBOARD */}
             <Route
-                path="/dashboard"
-                element={
-                    <RequireAuth>
-                        <Dashboard />
-                    </RequireAuth>
-                }
-            />
-            <Route
-                path="/employee/tasks"
+                path="/employee"
                 element={
                     <RequireRole role="EMPLOYEE">
-                        <TasksPage />
-                    </RequireRole>
-                }
-            />
-            <Route
-                path="/employee/leave"
-                element={
-                    <RequireRole role="EMPLOYEE">
-                        <LeavePage />
-                    </RequireRole>
-                }
-            />
-            <Route
-                path="/employee/leave/new"
-                element={
-                    <RequireRole role="EMPLOYEE">
-                        <CreateLeavePage />
+                        <EmployeeDashboard />
                     </RequireRole>
                 }
             />
