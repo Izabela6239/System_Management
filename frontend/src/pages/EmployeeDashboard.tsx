@@ -28,7 +28,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import "../assets/css/core.scss";
 import "../assets/css/demo.css";
 // dacă ai app-calendar.css, import-o aici (poate fi în alt folder în proiectul tău)
-import "../assets/css/app-calendar.css";
+//import "../assets/css/app-calendar.css";
 
 type View = "TASKS" | "LEAVE" | "CALENDAR";
 

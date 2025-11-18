@@ -23,7 +23,7 @@ export default function Login() {
             if (data.role === "ADMIN") {
                 navigate("/admin");
             } else {
-                navigate("/dashboard");
+                navigate("/employee");
             }
         } catch (err) {
             setError("Invalid username or password");
