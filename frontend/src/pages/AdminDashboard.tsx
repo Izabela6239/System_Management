@@ -23,7 +23,7 @@ import {
     AdminTask,
     AdminUser,
     Assignment,
-    MonthlyReport,
+    MonthlyReport, getAssignmentsByTask,
 } from "../services/AdminService";
 
 // !!! asigură-te că importurile către CSS sunt corecte:
@@ -134,13 +134,231 @@ export default function AdminDashboard() {
     };
 
     // bootstrap data
+    // useEffect pentru a încărca employees când view-ul se schimbă
     useEffect(() => {
-        refreshEmployees();
-        refreshUnassigned();
-        refreshMyTasks();
-    }, []);
+        if (view === "EMPLOYEES") {
+            console.log("👀 View changed to EMPLOYEES, loading employees...");
+            const loadEmployees = async () => {
+                try {
+                    const data = await getEmployees();
+                    console.log("📥 Employees loaded on view change:", data);
+                    setEmployees(Array.isArray(data) ? data : []);
+                } catch (error) {
+                    console.error("Error loading employees:", error);
+                }
+            };
+            loadEmployees();
+        }
+    }, [view]);
 
-    const refreshEmployees = async () => setEmployees(await getEmployees());
+    // useEffect pentru edit employee
+    useEffect(() => {
+        if (form.executeEditEmployee && form.id) {
+            const editEmployee = async () => {
+                try {
+                    console.log("🔄 Editing employee...");
+                    console.log("Employee ID:", form.id);
+                    console.log("Edit data:", {
+                        name: form.name,
+                        email: form.email,
+                        username: form.username,
+                        active: form.active
+                    });
+
+                    // Pregătește datele pentru backend
+                    const updateData: any = {};
+
+                    if (form.name !== undefined) updateData.name = form.name;
+                    if (form.email !== undefined) updateData.email = form.email;
+                    if (form.username !== undefined) updateData.username = form.username;
+                    if (form.active !== undefined) updateData.active = form.active;
+                    if (form.role !== undefined) updateData.role = form.role;
+                    if (form.hourlyRate !== undefined) updateData.hourlyRate = Number(form.hourlyRate);
+                    if (form.seniority !== undefined) updateData.seniority = form.seniority;
+
+                    console.log("📤 Sending update data:", updateData);
+
+                    // Apel către backend
+                    await updateEmployee(Number(form.id), updateData);
+
+                    console.log("✅ Employee updated successfully!");
+
+                    // Refresh lista de employees
+                    await refreshEmployees();
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error editing employee:", error);
+                    // Resetează doar flag-ul de execuție
+                    setForm((prev: any) => ({ ...prev, executeEditEmployee: false }));
+                }
+            };
+
+            editEmployee();
+        }
+    }, [form.executeEditEmployee, form.id, form.name, form.email, form.username, form.active, form.role, form.hourlyRate, form.seniority]);
+
+    useEffect(() => {
+        if (view === "TASKS_UNASSIGNED") {
+            const loadUnassignedTasks = async () => {
+                try {
+                    const data = await getUnassignedTasks();
+
+                    console.log("=== DEBUG UNASSIGNED TASKS ===");
+                    console.log("Full data:", data);
+
+                    if (Array.isArray(data)) {
+                        data.forEach((task, index) => {
+                            console.log(`Task ${index}:`, {
+                                id: task.id,
+                                status: task.status,
+                                allProperties: Object.keys(task)
+                            });
+                        });
+
+                        const filteredTasks = data.filter(task => {
+                            const hasStatus = task.status !== undefined && task.status !== null;
+                            const isNotAssigned = task.status !== "ASSIGNED";
+                            return hasStatus && isNotAssigned;
+                        });
+
+                        console.log("Final filtered tasks:", filteredTasks);
+                        setUnassignedTasks(filteredTasks);
+                    } else {
+                        console.log("Data is not an array");
+                        setUnassignedTasks([]);
+                    }
+
+                } catch (error) {
+                    console.error("Error loading unassigned tasks:", error);
+                    setUnassignedTasks([]);
+                }
+            };
+            loadUnassignedTasks();
+        }
+    }, [view]);
+
+    useEffect(() => {
+        if (view === "MY_TASKS") {
+            const loadMyTasks = async () => {
+                try {
+                    const data = await getMyTasks();
+                    console.log("My tasks loaded:", data);
+                    setMyTasks(Array.isArray(data) ? data : []);
+                } catch (error) {
+                    console.error("Error loading my tasks:", error);
+                } finally {
+                }
+            };
+            loadMyTasks();
+        }
+    }, [view]);
+
+// 4. Get assignments by employee
+    // 4. Get assignments by employee
+    // 4. Get assignments by task (când view este ASSIGNMENTS și avem taskId)
+    useEffect(() => {
+        if (view === "ASSIGNMENTS" && form.taskId) {
+            const loadAssignments = async () => {
+                try {
+                    console.log("🔄 Loading assignments for task ID:", form.taskId);
+                    const data = await getAssignmentsByTask(Number(form.taskId));
+                    console.log("✅ Task assignments loaded:", data);
+                    setAssignments(Array.isArray(data) ? data : []);
+                } catch (error) {
+                    console.error("❌ Error loading task assignments:", error);
+                    setAssignments([]);
+                }
+            };
+            loadAssignments();
+        }
+    }, [view, form.taskId]);
+
+    useEffect(() => {
+        // Ascultă pentru schimbări în form pentru a trigger-ui asignarea
+        if (form.taskId && form.employeeId && form.autoAssign) {
+            const assignTaskToEmployee = async () => {
+                try {
+                    console.log("🔄 Auto-assigning task to employee...");
+                    console.log("Task ID:", form.taskId);
+                    console.log("Employee ID:", form.employeeId);
+
+                    await assignTask(Number(form.taskId), Number(form.employeeId));
+
+                    console.log("✅ Task assigned successfully!");
+
+                    // Refresh listele de task-uri
+                    await Promise.all([refreshUnassigned(), refreshMyTasks()]);
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error auto-assigning task:", error);
+                }
+            };
+
+            assignTaskToEmployee();
+        }
+    }, [form.taskId, form.employeeId, form.autoAssign]); // Se execută când aceste valori se schimbă
+
+    // useEffect pentru unassign task cu ID-urile introduse manual
+    useEffect(() => {
+        if (form.executeUnassign && form.unassignTaskId && form.unassignEmployeeId) {
+            const performUnassign = async () => {
+                try {
+                    console.log("🔄 Executing unassign...");
+                    console.log("Task ID:", form.unassignTaskId);
+                    console.log("Employee ID:", form.unassignEmployeeId);
+
+                    // Execută unassign-ul
+                    await unassignTask(
+                        Number(form.unassignTaskId),
+                        Number(form.unassignEmployeeId)
+                    );
+
+                    console.log("✅ Task unassigned successfully!");
+
+                    // Refresh listele de task-uri
+                    await refreshUnassigned();
+                    await refreshMyTasks();
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error unassigning task:", error);
+                    // Resetează doar flag-ul de execuție, păstrează ID-urile pentru reîncercare
+                    setForm((prev: any) => ({ ...prev, executeUnassign: false }));
+                }
+            };
+
+            performUnassign();
+        }
+    }, [form.executeUnassign, form.unassignTaskId, form.unassignEmployeeId]);
+
+
+    // useEffect pentru adăugarea unui employee în baza de date
+    // useEffect pentru adăugarea unui employee - cu debugging
+
+    const refreshEmployees = async () => {
+        try {
+            console.log("🔄 Refreshing employees list...");
+            const data = await getEmployees();
+            console.log("📋 Employees data received:", data);
+            console.log("📊 Is array?", Array.isArray(data));
+            console.log("🔢 Number of employees:", data.length);
+
+            setEmployees(Array.isArray(data) ? data : []);
+
+            console.log("✅ Employees state updated");
+        } catch (error) {
+            console.error("❌ Error refreshing employees:", error);
+            setEmployees([]);
+        }
+    };
     const refreshUnassigned = async () => setUnassignedTasks(await getUnassignedTasks());
     const refreshMyTasks = async () => setMyTasks(await getMyTasks());
 
@@ -148,44 +366,178 @@ export default function AdminDashboard() {
 
     const submitAddEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { name, email, username, password } = form;
-        if (!username) return;
-        await createEmployee({ name, email, username, password, active: true });
-        await refreshEmployees();
-        close();
+        const { username, password, role, active, name, email, hourlyRate, seniority } = form;
+
+        console.log("📝 Add employee form submitted:", { username, password, role });
+
+        // Validare - doar username și password sunt obligatorii
+        if (!username || !password) {
+            console.error("❌ Username and password are required");
+            alert("Username și parola sunt obligatorii!");
+            return;
+        }
+
+        try {
+            console.log("🔄 Calling createEmployee API...");
+
+            // Pregătește datele pentru backend
+            const employeeData = {
+                username: username,
+                password: password,
+                role: role || "EMPLOYEE",
+                active: active !== undefined ? active : true,
+                name: name || username, // folosește username ca name dacă nu e specificat
+                email: email || `${username}@company.com`, // email default
+                hourlyRate: hourlyRate ? Number(hourlyRate) : 0,
+                seniority: seniority || "JUNIOR"
+            };
+
+            console.log("📤 Sending to backend:", employeeData);
+
+            // Execută direct apelul API
+            const newEmployee = await createEmployee(employeeData);
+
+            console.log("✅ Employee created successfully:", newEmployee);
+
+            // Refresh lista de employees
+            await refreshEmployees();
+
+            console.log("🔄 Employees list refreshed");
+
+            // Închide modal-ul
+            close();
+
+        } catch (error) {
+            console.error("❌ Error creating employee:", error);
+            // @ts-ignore
+            alert("Eroare la crearea angajatului: " + error.message);
+        }
     };
 
     const submitEditEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { id, name, email, username, active } = form;
-        if (!id) return;
-        await updateEmployee(Number(id), {
-            name: name || undefined,
-            email: email || undefined,
-            username: username || undefined,
-            active: typeof active === "string" ? active === "true" : active,
-        });
-        await refreshEmployees();
-        close();
-    };
+        const { id, name, email, username, active, role, hourlyRate, seniority } = form;
 
+        console.log("📝 Edit employee form submitted:", { id, name, email, username, active });
+
+        if (!id) {
+            console.error("❌ Employee ID is required");
+            alert("ID-ul angajatului este obligatoriu!");
+            return;
+        }
+
+        try {
+            console.log("🔄 Step 1: Calling updateEmployee API...");
+
+            // Pregătește datele pentru backend - trimite chiar și valorile undefined
+            const updateData: any = {
+                // Include toate câmpurile chiar dacă sunt undefined
+                name: name,
+                email: email,
+                username: username,
+                active: active, // acesta este cel important!
+                role: role,
+                hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
+                seniority: seniority
+            };
+
+            // Curăță obiectul de valori complet goale, dar păstrează active: false
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] === undefined || updateData[key] === "") {
+                    delete updateData[key];
+                }
+            });
+
+            console.log("📤 Step 2: Sending update data:", updateData);
+
+            // Execută apelul API
+            await updateEmployee(Number(id), updateData);
+
+            console.log("✅ Step 3: Employee updated successfully in database!");
+
+            // Step 4: Așteaptă puțin pentru a se procesa pe server
+            console.log("⏳ Step 4: Waiting for server processing...");
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Step 5: Reîncarcă lista
+            console.log("🔄 Step 5: Refreshing employees list...");
+            await refreshEmployees();
+
+            // Step 6: Verifică starea actuală
+            console.log("🔍 Step 6: Current employees state:", employees);
+
+            // Step 7: Închide modal-ul
+            console.log("✅ Step 7: Closing modal");
+            close();
+
+        } catch (error) {
+            console.error("❌ Error editing employee:", error);
+            // @ts-ignore
+            alert("Eroare la editarea angajatului: " + error.message);
+        }
+    };
     const submitDeleteEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { id } = form;
-        if (!id) return;
-        await deleteEmployee(Number(id));
-        await refreshEmployees();
-        close();
+
+        console.log("📝 Delete employee form submitted:", { id });
+
+        if (!id) {
+            console.error("❌ Employee ID is required for deletion");
+            alert("ID-ul angajatului este obligatoriu pentru ștergere!");
+            return;
+        }
+
+        const employeeId = Number(id);
+
+        // Confirmare
+        const confirmed = window.confirm(`Ești sigur că vrei să ștergi angajatul cu ID-ul ${employeeId}? Această acțiune este ireversibilă.`);
+
+        if (!confirmed) {
+            console.log("❌ Deletion cancelled by user");
+            close();
+            return;
+        }
+
+        try {
+            console.log("🔄 Calling deleteEmployee API...");
+
+            // Folosește funcția importată din AdminService
+            await deleteEmployee(employeeId);
+
+            console.log("✅ Employee deleted successfully!");
+
+            // Refresh lista de employees
+            await refreshEmployees();
+
+            console.log("🔄 Employees list refreshed after deletion");
+
+            // Închide modal-ul
+            close();
+
+        } catch (error) {
+            console.error("❌ Error deleting employee:", error);
+            // @ts-ignore
+            alert("Eroare la ștergerea angajatului: " + error.message);
+        }
     };
+
 
     const submitAssign = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { taskId, employeeId } = form;
         if (!taskId || !employeeId) return;
-        await assignTask(Number(taskId), Number(employeeId));
-        await refreshUnassigned();
-        close();
+        try {
+            await assignTask(Number(taskId), Number(employeeId));
+            await refreshUnassigned(); // ✅ Refresh după asignare
+        } catch (error) {
+            console.error("Error assigning task:", error);
+        } finally {
+            close();
+        }
     };
+
+
 
     const submitUnassign = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -199,19 +551,42 @@ export default function AdminDashboard() {
         e.preventDefault();
         const { taskId } = form;
         if (!taskId) return;
-        await assignTaskToMe(Number(taskId));
-        await Promise.all([refreshUnassigned(), refreshMyTasks()]);
-        close();
+        try {
+            await assignTaskToMe(Number(taskId));
+            await Promise.all([refreshUnassigned(), refreshMyTasks()]); // ✅ Refresh ambele view-uri
+        } catch (error) {
+            console.error("Error assigning task to me:", error);
+        } finally {
+            close();
+        }
     };
 
     const submitViewAssignments = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        const { employeeId } = form;
-        if (!employeeId) return;
-        const data = await getAssignmentsByEmployee(Number(employeeId));
-        setAssignments(data);
-        setView("ASSIGNMENTS");
-        close();
+        const { taskId } = form;
+
+        console.log("=== DEBUG TASK ASSIGNMENTS ===");
+        console.log("Task ID from form:", taskId);
+        console.log("All unassigned tasks:", unassignedTasks);
+        console.log("All my tasks:", myTasks);
+
+        if (!taskId) {
+            console.error("❌ No task ID provided");
+            return;
+        }
+
+        try {
+            console.log("🔄 Calling getAssignmentsByTask with ID:", taskId);
+            const data = await getAssignmentsByTask(Number(taskId));
+            console.log("✅ Task assignments loaded:", data);
+
+            setAssignments(Array.isArray(data) ? data : []);
+            setView("ASSIGNMENTS");
+        } catch (error) {
+            console.error("❌ Error loading task assignments:", error);
+        } finally {
+            close();
+        }
     };
 
     const submitGenerateReport = async (e: FormEvent<HTMLFormElement>) => {
@@ -282,12 +657,18 @@ export default function AdminDashboard() {
         }
 
         if (view === "EMPLOYEES") {
-            return employees.map<TableRow>(e => ({
-                id: e.id,
-                col1: e.name || e.username,
-                col2: e.email || "",
-                col3: e.active ? "Active" : "Inactive",
-                col4: "",
+            // Filtrează doar userii cu rolul EMPLOYEE
+            const employeesOnly = employees.filter(user => user.role === "EMPLOYEE");
+
+            console.log("👥 Employees after filtering:", employeesOnly);
+            console.log("🔢 Total users:", employees.length, "Employees only:", employeesOnly.length);
+
+            return employeesOnly.map<TableRow>(user => ({
+                id: user.id,
+                col1: user.username, // Username ca nume afișat
+                col2: user.username.includes('@') ? user.username : `${user.username}@company.com`,
+                col3: user.active ? "✅ Active" : "❌ Inactive",
+                col4: `Role: ${user.role}`,
                 actions: undefined,
             }));
         }
@@ -556,11 +937,11 @@ export default function AdminDashboard() {
             </div>
 
             {/* === Modals === */}
-
+            {/* ADD EMPLOYEE */}
             {/* ADD EMPLOYEE */}
             <Modal
                 open={modal === "ADD_EMP"}
-                title="Adaugă angajat"
+                title="Adaugă Angajat"
                 onClose={close}
                 onSubmit={submitAddEmployee}
                 submitLabel="Adaugă"
@@ -569,7 +950,46 @@ export default function AdminDashboard() {
                     <div className="col-md-6">
                         <input
                             className="form-control"
-                            placeholder="Nume"
+                            placeholder="Username*"
+                            value={form.username || ""}
+                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            type="password"
+                            placeholder="Parolă*"
+                            value={form.password || ""}
+                            onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <select
+                            className="form-select"
+                            value={form.role || "EMPLOYEE"}
+                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                        >
+                            <option value="EMPLOYEE">Employee</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <select
+                            className="form-select"
+                            value={form.active !== undefined ? form.active.toString() : "true"}
+                            onChange={(e) => setForm({ ...form, active: e.target.value === "true" })}
+                        >
+                            <option value="true">Activ</option>
+                            <option value="false">Inactiv</option>
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            placeholder="Nume (opțional)"
                             value={form.name || ""}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
                         />
@@ -577,7 +997,8 @@ export default function AdminDashboard() {
                     <div className="col-md-6">
                         <input
                             className="form-control"
-                            placeholder="Email"
+                            type="email"
+                            placeholder="Email (opțional)"
                             value={form.email || ""}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                         />
@@ -585,52 +1006,59 @@ export default function AdminDashboard() {
                     <div className="col-md-6">
                         <input
                             className="form-control"
-                            placeholder="Username"
-                            value={form.username || ""}
-                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Rată orară (opțional)"
+                            value={form.hourlyRate || ""}
+                            onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
                         />
                     </div>
                     <div className="col-md-6">
-                        <input
-                            className="form-control"
-                            type="password"
-                            placeholder="Parolă"
-                            value={form.password || ""}
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
-                        />
+                        <select
+                            className="form-select"
+                            value={form.seniority || "JUNIOR"}
+                            onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+                        >
+                            <option value="JUNIOR">Junior</option>
+                            <option value="MID">Mid</option>
+                            <option value="SENIOR">Senior</option>
+                        </select>
                     </div>
                 </div>
+                <small className="text-muted mt-2">* Username și parolă sunt obligatorii pentru autentificare</small>
             </Modal>
-
+            {/* EDIT EMPLOYEE */}
             {/* EDIT EMPLOYEE */}
             <Modal
                 open={modal === "EDIT_EMP"}
-                title="Editează angajat"
+                title="Editează Angajat"
                 onClose={close}
                 onSubmit={submitEditEmployee}
                 submitLabel="Salvează"
             >
                 <div className="row g-2">
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <input
                             className="form-control"
-                            placeholder="ID"
+                            placeholder="ID Angajat*"
                             value={form.id || ""}
                             onChange={(e) => setForm({ ...form, id: e.target.value })}
+                            required
                         />
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <select
                             className="form-select"
-                            value={form.active ?? ""}
-                            onChange={(e) => setForm({ ...form, active: e.target.value })}
+                            value={form.active !== undefined ? form.active.toString() : ""}
+                            onChange={(e) => setForm({ ...form, active: e.target.value === "true" })}
                         >
-                            <option value="">Active? (opțional)</option>
-                            <option value="true">Da</option>
-                            <option value="false">Nu</option>
+                            <option value="">Status (opțional)</option>
+                            <option value="true">Activ</option>
+                            <option value="false">Inactiv</option>
                         </select>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-6">
                         <input
                             className="form-control"
                             placeholder="Username (opțional)"
@@ -649,31 +1077,71 @@ export default function AdminDashboard() {
                     <div className="col-md-6">
                         <input
                             className="form-control"
+                            type="email"
                             placeholder="Email (opțional)"
                             value={form.email || ""}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                         />
                     </div>
+                    <div className="col-md-6">
+                        <select
+                            className="form-select"
+                            value={form.role || ""}
+                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                        >
+                            <option value="">Rol (opțional)</option>
+                            <option value="EMPLOYEE">Employee</option>
+                            <option value="ADMIN">Admin</option>
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <input
+                            className="form-control"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Rată orară (opțional)"
+                            value={form.hourlyRate || ""}
+                            onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <select
+                            className="form-select"
+                            value={form.seniority || ""}
+                            onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+                        >
+                            <option value="">Senioritate (opțional)</option>
+                            <option value="JUNIOR">Junior</option>
+                            <option value="MID">Mid</option>
+                            <option value="SENIOR">Senior</option>
+                        </select>
+                    </div>
                 </div>
+                <small className="text-muted mt-2">* Completează doar câmpurile pe care vrei să le modifici</small>
             </Modal>
-
+            {/* DELETE EMPLOYEE */}
             {/* DELETE EMPLOYEE */}
             <Modal
                 open={modal === "DEL_EMP"}
-                title="Șterge angajat"
+                title="Șterge Angajat"
                 onClose={close}
                 onSubmit={submitDeleteEmployee}
                 submitLabel="Șterge"
             >
+                <div className="alert alert-warning">
+                    <strong>Atenție!</strong> Această acțiune este ireversibilă.
+                </div>
                 <input
-                    className="form-control mb-2"
-                    placeholder="ID angajat"
+                    className="form-control"
+                    placeholder="ID Angajat*"
                     value={form.id || ""}
                     onChange={(e) => setForm({ ...form, id: e.target.value })}
+                    required
                 />
-                <p className="text-danger small mb-0">
-                    Atenție: acțiune ireversibilă.
-                </p>
+                <small className="text-muted mt-2">
+                    Introdu ID-ul angajatului pe care vrei să îl ștergi.
+                </small>
             </Modal>
 
             {/* ASSIGN TASK */}
@@ -747,20 +1215,19 @@ export default function AdminDashboard() {
                     onChange={(e) => setForm({ ...form, taskId: e.target.value })}
                 />
             </Modal>
-
-            {/* VIEW ASSIGNMENTS FOR EMPLOYEE */}
+            {/* VIEW ASSIGNMENTS FOR TASK */}
             <Modal
                 open={modal === "VIEW_ASSIGNMENTS"}
-                title="Vezi asignările unui angajat"
+                title="Vezi asignările unui task"
                 onClose={close}
                 onSubmit={submitViewAssignments}
                 submitLabel="Afișează"
             >
                 <input
                     className="form-control"
-                    placeholder="Employee ID"
-                    value={form.employeeId || ""}
-                    onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                    placeholder="Task ID"
+                    value={form.taskId || ""}
+                    onChange={(e) => setForm({ ...form, taskId: e.target.value })}
                 />
             </Modal>
 

@@ -23,10 +23,14 @@ export interface AdminTask {
 
 export interface AdminUser {
     id: number;
-    name: string;
-    email: string;
+    name?: string;
     username: string;
+    email?: string;
+    role: string;
     active: boolean;
+    // Alte câmpuri care vin din User entity
+    hourlyRate?: number;
+    seniority?: string;
 }
 
 // folosit la crearea unui angajat (parola doar aici)
@@ -61,189 +65,195 @@ export interface MonthlyReport {
 }
 
 /* ========== BASE ========== */
-
 const base = "/admin";
 
 /* ========== EMPLOYEES ========== */
-
+// În AdminService.ts
 export const getEmployees = async (): Promise<AdminUser[]> => {
-    const { data } = await axios.get(`${base}/employee`);
-    return data ?? [];
+    console.log("🚀 Fetching employees from API...");
+
+    const response = await fetch('http://localhost:8080/admin/employee', {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        }
+    });
+
+    console.log("📨 Employees response status:", response.status);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error fetching employees:", errorText);
+        throw new Error(`Failed to fetch employees: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("🔍 FULL Employees API response structure:", result);
+
+    // Debug: afișează primul employee dacă există
+    if (result.length > 0) {
+        console.log("📊 First employee details:", result[0]);
+        console.log("🔑 Keys of first employee:", Object.keys(result[0]));
+    }
+
+    return result;
 };
 
-export const createEmployee = async (
-    payload: AdminUserCreate
-): Promise<AdminUser> => {
-    const { data } = await axios.post(`${base}/employee`, payload);
-    return data;
+export const createEmployee = async (employeeData: {
+    username: string;
+    password: string;
+    role: string;
+    active?: boolean;
+    name?: string;
+    email?: string;
+    hourlyRate?: number;
+    seniority?: string;
+}): Promise<AdminUser> => {
+    console.log("🚀 Sending POST request to /admin/employee", employeeData);
+
+    const response = await fetch('http://localhost:8080/admin/employee', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(employeeData)
+    });
+
+    console.log("📨 Response status:", response.status);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error:", errorText);
+        throw new Error(`Failed to create employee: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("✅ API Response:", result);
+    return result;
 };
 
-export const updateEmployee = async (
-    id: number,
-    payload: AdminUserUpdate
-): Promise<AdminUser> => {
-    const { data } = await axios.put(`${base}/employee/${id}`, payload);
-    return data;
+export const updateEmployee = async (id: number, updateData: any): Promise<AdminUser> => {
+    console.log("🚀 Sending PUT request to update employee:", { id, updateData });
+
+    const response = await fetch(`http://localhost:8080/admin/employee/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+    });
+
+    console.log("📨 Update response status:", response.status);
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error updating employee:", errorText);
+        throw new Error(`Failed to update employee: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log("✅ Update API Response:", result);
+    return result;
 };
 
 export const deleteEmployee = async (id: number): Promise<void> => {
-    await axios.delete(`${base}/employee/${id}`);
-};
+    console.log("🚀 Sending DELETE request for employee ID:", id);
 
-/* ========== ASSIGNMENTS ========== */
-
-export const assignTask = async (
-    taskId: number,
-    employeeId: number
-): Promise<Assignment> => {
-    const { data } = await axios.post(`${base}/assign`, null, {
-        params: { taskId, employeeId },
+    const response = await fetch(`http://localhost:8080/admin/employee/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        }
     });
-    return data as Assignment;
+
+    console.log("📨 Delete response status:", response.status);
+    console.log("📨 Delete response ok:", response.ok);
+    console.log("📨 Delete response headers:", response.headers);
+
+    // Verifică dacă response-ul este gol (204 No Content) sau conține date
+    if (response.status === 204) {
+        console.log("✅ DELETE successful - 204 No Content");
+    } else {
+        const responseText = await response.text();
+        console.log("📨 Delete response body:", responseText);
+    }
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ API Error deleting employee:", errorText);
+        throw new Error(`Failed to delete employee: ${response.status} ${errorText}`);
+    }
+
+    console.log("✅ Employee deleted successfully from API");
 };
 
-export const unassignTask = async (
-    taskId: number,
-    employeeId: number
-): Promise<void> => {
-    await axios.delete(`${base}/unassign`, { params: { taskId, employeeId } });
-};
-
-export const getAssignmentsByEmployee = async (
-    employeeId: number
-): Promise<Assignment[]> => {
-    const { data } = await axios.get(`${base}/employee/${employeeId}`);
-    return data ?? [];
-};
-
-export const getAssignmentsByTask = async (
-    taskId: number
-): Promise<Assignment[]> => {
-    const { data } = await axios.get(`${base}/task/${taskId}`);
-    return data ?? [];
-};
-
-/* ========== ADMIN SELF-ASSIGN + QUERIES ========== */
-
-export const assignTaskToMe = async (taskId: number): Promise<AdminTask> => {
-    const { data } = await axios.post(`${base}/assign-task-to-me`, null, {
-        params: { taskId },
-    });
-    return data as AdminTask;
-};
-
+/* ========== TASKS / ASSIGNMENTS ========== */
 export const getUnassignedTasks = async (): Promise<AdminTask[]> => {
     const { data } = await axios.get(`${base}/unassigned-tasks`);
+    // Asigurăm că data e array
     return Array.isArray(data) ? data : [];
 };
+
 
 export const getMyTasks = async (): Promise<AdminTask[]> => {
     const { data } = await axios.get(`${base}/my-tasks`);
     return Array.isArray(data) ? data : [];
 };
 
+
+export const assignTask = async (taskId: number, employeeId: number) => {
+    const { data } = await axios.post(`${base}/assign`, null, { params: { taskId, employeeId } });
+    return data;
+};
+
+export const unassignTask = async (taskId: number, employeeId: number) => {
+    await axios.delete(`${base}/unassign`, { params: { taskId, employeeId } });
+};
+
+export const assignTaskToMe = async (taskId: number) => {
+    const { data } = await axios.post(`${base}/assign-task-to-me`, null, { params: { taskId } });
+    return data;
+};
+
+// Pentru asignările unui angajat
+export const getAssignmentsByEmployee = async (employeeId: number): Promise<Assignment[]> => {
+    const response = await fetch(`http://localhost:8080/admin/employee/${employeeId}`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    if (!response.ok) throw new Error('Failed to fetch employee assignments');
+    return response.json();
+};
+
+// Pentru asignările unui task
+export const getAssignmentsByTask = async (taskId: number): Promise<Assignment[]> => {
+    const response = await fetch(`http://localhost:8080/admin/task/${taskId}`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+        }
+    });
+    if (!response.ok) throw new Error('Failed to fetch task assignments');
+    return response.json();
+};
+
 /* ========== REPORTS ========== */
-
-export const generateMonthlyReport = async (
-    employeeId: number,
-    year: number,
-    month: number
-): Promise<MonthlyReport> => {
-    const { data } = await axios.post(`${base}/reports/generate`, null, {
-        params: { employeeId, year, month },
-    });
-    return data as MonthlyReport;
-};
-
-/* ========== TASK MANAGEMENT (preset/difficulty/finalize) ========== */
-
-export const setTaskPresetDuration = async (
-    id: number,
-    minutes: number
-): Promise<AdminTask> => {
-    const { data } = await axios.put(
-        `${base}/tasks/${id}/preset-duration`,
-        null,
-        { params: { minutes } }
-    );
+export const generateMonthlyReport = async (employeeId: number, year: number, month: number) => {
+    const { data } = await axios.post(`${base}/reports/generate`, null, { params: { employeeId, year, month } });
     return data;
 };
 
-export const setTaskDifficulty = async (
-    id: number,
-    level: number
-): Promise<AdminTask> => {
-    const { data } = await axios.put(`${base}/tasks/${id}/difficulty`, null, {
-        params: { level },
-    });
-    return data;
-};
-
-export const finalizeTask = async (
-    id: number,
-    actualMinutes: number,
-    grade?: number,
-    profit?: number
-): Promise<AdminTask> => {
-    const { data } = await axios.put(`${base}/tasks/${id}/finalize`, null, {
-        params: { actualMinutes, grade, profit },
-    });
-    return data;
-};
-
-/* ========== LEAVES (approve/reject) ========== */
-
-export const approveLeave = async (
-    leaveId: number,
-    comment?: string
-): Promise<void> => {
-    await axios.post(`${base}/leaves/${leaveId}/approve`, null, {
-        params: { comment },
-    });
-};
-
-export const rejectLeave = async (
-    leaveId: number,
-    comment?: string
-): Promise<void> => {
-    await axios.post(`${base}/leaves/${leaveId}/reject`, null, {
-        params: { comment },
-    });
-};
-
-/* ========== SALARY ========== */
-
-export const computeSalary = async (
-    employeeId: number,
-    year: number,
-    month: number
-): Promise<number> => {
-    const { data } = await axios.get(`${base}/salary/${employeeId}`, {
-        params: { year, month },
-    });
-    return data ?? 0;
-};
-
-/* ========== EMPLOYEE XML IMPORT ========== */
-
-export const importEmployeesXml = async (file: File): Promise<AdminUser[]> => {
+/* ========== IMPORT XML ========== */
+export const importEmployeesXml = async (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
     const { data } = await axios.post(`${base}/employee/import-xml`, fd, {
         headers: { "Content-Type": "multipart/form-data" },
     });
     return data ?? [];
-};
-
-/* ========== KPI (productivity/profit monthly) ========== */
-
-export const getMonthlyKpi = async (
-    employeeId: number,
-    year: number,
-    month: number
-): Promise<MonthlyReport> => {
-    const { data } = await axios.get(`${base}/kpi/monthly`, {
-        params: { employeeId, year, month },
-    });
-    return data;
 };

@@ -2,6 +2,7 @@ package com.example.app.managementapi.ManagementApiApplication.controller;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
 import com.example.app.managementapi.ManagementApiApplication.dto.TaskDto;
+import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import com.example.app.managementapi.ManagementApiApplication.mapper.TaskMapper;
 import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
@@ -24,6 +25,7 @@ import java.time.Year;
 import java.time.YearMonth;
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')")
@@ -45,7 +47,7 @@ public class    ControllerForAdmin {
 
     @GetMapping("/employee")
     public List<User> getAllEmployees() {
-        return employeeService.getAllEmployees();
+        return userRepository.findByRole(UserRole.EMPLOYEE);
     }
 
     @PostMapping("/employee")
