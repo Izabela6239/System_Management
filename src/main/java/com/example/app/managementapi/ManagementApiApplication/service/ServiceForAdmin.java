@@ -99,6 +99,7 @@ public class ServiceForAdmin {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new RuntimeException("Admin not found with id: " + adminId));
         task.setAdmin(admin);
+        task.setStatus(TaskStatus.ASSIGNED);
         return taskRepository.save(task);
     }
 
@@ -106,9 +107,10 @@ public class ServiceForAdmin {
         return taskRepository.findByAdminId(adminId);
     }
 
-    public List<Task> getUnassignedTasks() {
-        return taskRepository.findByAdminIsNull();
+    public List<Task> getUnassignedTasks(Long adminId) {
+        return taskRepository.findByAdminIdAndStatus(adminId, TaskStatus.NEW);
     }
+
 
     /* =======================
        NOU: management task

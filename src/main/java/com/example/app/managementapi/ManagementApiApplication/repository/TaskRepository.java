@@ -37,5 +37,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("SELECT t FROM Task t WHERE t.deadline < CURRENT_TIMESTAMP AND t.status NOT IN ('COMPLETED', 'CANCELLED')")
     List<Task> findTasksWithExpiredDeadline();
-    List<Task> findByAdminIsNull();
+    List<Task> findByAdminIdAndStatus(Long adminId, TaskStatus status);
+
+
 }

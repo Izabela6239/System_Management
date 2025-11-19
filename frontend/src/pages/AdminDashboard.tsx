@@ -304,6 +304,34 @@ export default function AdminDashboard() {
         }
     }, [form.taskId, form.employeeId, form.autoAssign]); // Se execută când aceste valori se schimbă
 
+    useEffect(() => {
+        // Ascultă pentru schimbări în form pentru a trigger-ui asignarea
+        if (form.taskId && form.autoAssign) {
+            const assignTaskToMe = async () => {
+                try {
+                    console.log("🔄 Auto-assigning task to admin...");
+                    console.log("Task ID:", form.taskId);
+                    console.log("Admin ID:", form.employeeId);
+
+                    await assignTaskToMe();
+
+                    console.log("✅ Task assigned successfully!");
+
+                    // Refresh listele de task-uri
+                    await Promise.all([refreshMyTasks(), refreshMyTasks()]);
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error auto-assigning task:", error);
+                }
+            };
+
+            assignTaskToMe();
+        }
+    }, [form.taskId, form.employeeId, form.autoAssign]); // Se execută când aceste valori se schimbă
+
     // useEffect pentru unassign task cu ID-urile introduse manual
     useEffect(() => {
         if (form.executeUnassign && form.unassignTaskId && form.unassignEmployeeId) {
@@ -546,6 +574,8 @@ export default function AdminDashboard() {
         await unassignTask(Number(taskId), Number(employeeId));
         close();
     };
+
+
 
     const submitAssignToMe = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();

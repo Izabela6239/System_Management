@@ -65,7 +65,7 @@ export interface MonthlyReport {
 }
 
 /* ========== BASE ========== */
-const base = "/admin";
+const base = "http://localhost:8080/admin";
 
 /* ========== EMPLOYEES ========== */
 // În AdminService.ts

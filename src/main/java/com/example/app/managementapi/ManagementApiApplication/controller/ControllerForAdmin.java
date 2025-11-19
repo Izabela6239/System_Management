@@ -119,10 +119,24 @@ public class    ControllerForAdmin {
 
 
     @GetMapping("/unassigned-tasks")
-    public List<TaskDto> getUnassignedTasks() {
-        return assignmentService.getUnassignedTasks()
-                .stream().map(TaskMapper::toDto).toList();
+    public List<TaskDto> getUnassignedTasks(Authentication authentication) {
+
+        String username = authentication.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        // Obținem ID-ul adminului logat
+        Admin admin = adminRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
+
+        // Luăm task-urile NEW ale adminului conectat
+        return assignmentService.getUnassignedTasks(admin.getId())
+                .stream()
+                .map(TaskMapper::toDto)
+                .toList();
     }
+
 
     @GetMapping("/my-tasks")
     public List<TaskDto> getMyTasks(Authentication authentication) {
