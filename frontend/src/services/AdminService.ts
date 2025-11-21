@@ -433,3 +433,37 @@ export const updateTask = async (taskId: number, taskData: any) => {
 
 // Funcție pentru obținerea istoricului salariilor
 };
+
+export interface WorkloadPoint {
+    day: string;
+    shipment: number;
+    delivery: number;
+}
+
+export interface StatusSlice {
+    name: string;
+    value: number;
+}
+
+export interface ProgressRow {
+    code: string;
+    start: string;
+    end: string;
+    warning: string;
+    progress: number;
+}
+
+export const getWorkloadByDay = async (): Promise<WorkloadPoint[]> => {
+    const { data } = await axios.get(`http://localhost:8080/admin/charts/workload-by-day`);
+    return Array.isArray(data) ? data : [];
+};
+
+export const getStatusDistribution = async (): Promise<StatusSlice[]> => {
+    const { data } = await axios.get(`http://localhost:8080/admin/charts/status-distribution`);
+    return Array.isArray(data) ? data : [];
+};
+
+export const getAssignmentsProgress = async (): Promise<ProgressRow[]> => {
+    const { data } = await axios.get(`http://localhost:8080/admin/charts/assignments-progress`);
+    return Array.isArray(data) ? data : [];
+};

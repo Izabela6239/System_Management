@@ -35,6 +35,10 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean active = true;
 
+    private Double hourlyRate;
+
+    private String seniority;
+
 
     private Long adminId;    // ID-ul din tabela admin
     private Long employeeId; // ID-ul din tabela employee

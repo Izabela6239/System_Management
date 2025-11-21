@@ -26,13 +26,19 @@ import {
     MonthlyReport, getAssignmentsByTask, getAllMonthlyReports, updateTask,
     calculatePayroll,
     getPayrollHistory,
-    Payroll
+    Payroll,
+    WorkloadPoint,
+    StatusSlice,
+    ProgressRow, getWorkloadByDay, getStatusDistribution, getAssignmentsProgress,
 } from "../services/AdminService";
 
 // !!! asigură-te că importurile către CSS sunt corecte:
 import "../assets/css/core.scss";
 import "../assets/css/demo.css";
 import "../assets/css/app-logistics-dashboard.css";
+import LineBarCombo from "../components/charts/LineBarCombo";
+import Donut from "../components/charts/Donut";
+import ProgressTable from "../components/tables/ProgressTable";
 
 type View =
     | "TASKS_UNASSIGNED"
@@ -54,8 +60,8 @@ type ModalType =
     | "GENERATE_REPORT"
     | "IMPORT_XML"
     |"EDIT_TASK"
-    |"CALCULATE_PAYROLL"  // ← ADAUGĂ ACESTA
-    | "VIEW_PAYROLL_HISTORY"; // ← ȘI ACESTA
+    |"CALCULATE_PAYROLL"
+    | "VIEW_PAYROLL_HISTORY";
 
 type TableRow = {
     id: number;
@@ -80,6 +86,7 @@ type TableRow1= {
     Role: string;
     actions?: React.ReactNode;
 };
+
 
 /*****************
  * Generic Modal *
@@ -153,6 +160,10 @@ export default function AdminDashboard() {
     // Adaugă state pentru rândurile expandate
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState<boolean>(false);
+
+    const [workload, setWorkload] = useState<WorkloadPoint[]>([]);
+    const [statusDist, setStatusDist] = useState<StatusSlice[]>([]);
+    const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
 
     const toggleRow = (id: number) => {
         const newExpanded = new Set(expandedRows);
@@ -263,6 +274,27 @@ export default function AdminDashboard() {
             loadEmployees();
         }
     }, [view]);
+
+    useEffect(() => {
+        const loadCharts = async () => {
+            try {
+                const [wl, sd, pr] = await Promise.all([
+                    getWorkloadByDay(),
+                    getStatusDistribution(),
+                    getAssignmentsProgress(),
+                ]);
+
+                setWorkload(wl);
+                setStatusDist(sd);
+                setProgressRows(pr);
+            } catch (e) {
+                console.error("Charts load error:", e);
+            }
+        };
+
+        loadCharts();
+    }, []);
+
 
     // Adaugă acest useEffect după useEffect-ul pentru edit employee
     useEffect(() => {
@@ -1091,11 +1123,11 @@ export default function AdminDashboard() {
                     </div>
                 </nav>
 
-                <div className="d-flex" style={{ background: "#fafafa", minHeight: "calc(100vh - 64px)" }}>
+                <div className="d-flex" style={{background: "#fafafa", minHeight: "calc(100vh - 64px)"}}>
                     {/* Sidebar */}
                     <aside
                         className="bg-white border-end"
-                        style={{ width: 260, padding: 16 }}
+                        style={{width: 260, padding: 16}}
                     >
                         <h5 className="mb-3">Admin</h5>
 
@@ -1311,7 +1343,8 @@ export default function AdminDashboard() {
                                                             <td>{row.Difficulty}/5</td>
                                                             <td>
                                                                 <div className="d-flex align-items-center">
-                                                                <span className="d-inline-block text-truncate me-2" style={{maxWidth: '120px'}}>
+                                                                <span className="d-inline-block text-truncate me-2"
+                                                                      style={{maxWidth: '120px'}}>
                                                                     {row.RequiredSkills}
                                                                 </span>
                                                                 </div>
@@ -1338,7 +1371,8 @@ export default function AdminDashboard() {
                                                                 <td colSpan={13}>
                                                                     <div className="p-3">
                                                                         <div className="d-flex align-items-center mb-2">
-                                                                            <span className="me-2 fw-bold">{row.Title}</span>
+                                                                            <span
+                                                                                className="me-2 fw-bold">{row.Title}</span>
                                                                             <button
                                                                                 className="btn btn-sm btn-outline-primary py-0 px-1"
                                                                                 onClick={() => open("EDIT_TASK", {
@@ -1369,7 +1403,8 @@ export default function AdminDashboard() {
                                                                                             const skills = JSON.parse(row.RequiredSkills);
                                                                                             if (Array.isArray(skills)) {
                                                                                                 return skills.map((skill, index) => (
-                                                                                                    <span key={index} className="badge bg-primary me-1 mb-1">
+                                                                                                    <span key={index}
+                                                                                                          className="badge bg-primary me-1 mb-1">
                                                                                                     {skill}
                                                                                                 </span>
                                                                                                 ));
@@ -1378,7 +1413,8 @@ export default function AdminDashboard() {
                                                                                             // Dacă nu e JSON valid, afișează ca text simplu
                                                                                         }
                                                                                         return (
-                                                                                            <span className="text-muted">{row.RequiredSkills}</span>
+                                                                                            <span
+                                                                                                className="text-muted">{row.RequiredSkills}</span>
                                                                                         );
                                                                                     })()}
                                                                                 </div>
@@ -1386,12 +1422,24 @@ export default function AdminDashboard() {
                                                                             <div className="col-md-6">
                                                                                 <strong>Additional Info:</strong>
                                                                                 <div className="mt-1">
-                                                                                    <div><small><strong>Type:</strong> {row.Type}</small></div>
-                                                                                    <div><small><strong>Difficulty:</strong> {row.Difficulty}/5</small></div>
-                                                                                    <div><small><strong>Planned Duration:</strong> {row.PlannedDuration} minutes</small></div>
-                                                                                    <div><small><strong>Predicted Duration:</strong> {row.PredictedDuration} minutes</small></div>
-                                                                                    <div><small><strong>Revenue:</strong> ${row.Revenue}</small></div>
-                                                                                    <div><small><strong>Other Costs:</strong> ${row.OtherCosts}</small></div>
+                                                                                    <div>
+                                                                                        <small><strong>Type:</strong> {row.Type}
+                                                                                        </small></div>
+                                                                                    <div>
+                                                                                        <small><strong>Difficulty:</strong> {row.Difficulty}/5</small>
+                                                                                    </div>
+                                                                                    <div><small><strong>Planned
+                                                                                        Duration:</strong> {row.PlannedDuration} minutes</small>
+                                                                                    </div>
+                                                                                    <div><small><strong>Predicted
+                                                                                        Duration:</strong> {row.PredictedDuration} minutes</small>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <small><strong>Revenue:</strong> ${row.Revenue}
+                                                                                        </small></div>
+                                                                                    <div><small><strong>Other
+                                                                                        Costs:</strong> ${row.OtherCosts}
+                                                                                    </small></div>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1399,7 +1447,7 @@ export default function AdminDashboard() {
                                                                             <div className="mt-3">
                                                                                 <button
                                                                                     className="btn btn-sm btn-outline-primary"
-                                                                                    onClick={() => open("ASSIGN_TO_ME", { taskId: row.id })}
+                                                                                    onClick={() => open("ASSIGN_TO_ME", {taskId: row.id})}
                                                                                 >
                                                                                     Assign to me
                                                                                 </button>
@@ -1489,7 +1537,8 @@ export default function AdminDashboard() {
                                                     </div>
                                                 ) : allReports.length === 0 ? (
                                                     <div className="text-center py-4">
-                                                        <p className="text-muted">No reports available. Generate your first report!</p>
+                                                        <p className="text-muted">No reports available. Generate your
+                                                            first report!</p>
                                                         <button
                                                             className="btn btn-primary mt-2"
                                                             onClick={() => {
@@ -1550,10 +1599,16 @@ export default function AdminDashboard() {
                                                     <div className="alert alert-success">
                                                         <h6>Last Generated Report</h6>
                                                         <div className="row">
-                                                            <div className="col-md-3"><strong>Employee:</strong> {report.employeeId}</div>
-                                                            <div className="col-md-3"><strong>Period:</strong> {report.year}-{String(report.month).padStart(2, "0")}</div>
-                                                            <div className="col-md-3"><strong>Tasks:</strong> {report.totalTasks}</div>
-                                                            <div className="col-md-3"><strong>Productivity:</strong> {report.productivityScore?.toFixed(2)}</div>
+                                                            <div className="col-md-3">
+                                                                <strong>Employee:</strong> {report.employeeId}</div>
+                                                            <div className="col-md-3">
+                                                                <strong>Period:</strong> {report.year}-{String(report.month).padStart(2, "0")}
+                                                            </div>
+                                                            <div className="col-md-3">
+                                                                <strong>Tasks:</strong> {report.totalTasks}</div>
+                                                            <div className="col-md-3">
+                                                                <strong>Productivity:</strong> {report.productivityScore?.toFixed(2)}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -1589,11 +1644,18 @@ export default function AdminDashboard() {
                                             <div className="alert alert-success mb-3">
                                                 <h6>Last Calculated Payroll</h6>
                                                 <div className="row">
-                                                    <div className="col-md-3"><strong>Employee:</strong> {currentPayroll.employee?.name || currentPayroll.employeeId}</div>
-                                                    <div className="col-md-3"><strong>Period:</strong> {currentPayroll.month}</div>
-                                                    <div className="col-md-2"><strong>Base Salary:</strong> ${currentPayroll.baseSalary?.toFixed(2)}</div>
-                                                    <div className="col-md-2"><strong>Bonuses:</strong> ${currentPayroll.bonuses?.toFixed(2)}</div>
-                                                    <div className="col-md-2"><strong>Net Salary:</strong> <strong>${currentPayroll.netSalary?.toFixed(2)}</strong></div>
+                                                    <div className="col-md-3">
+                                                        <strong>Employee:</strong> {currentPayroll.employee?.name || currentPayroll.employeeId}
+                                                    </div>
+                                                    <div className="col-md-3">
+                                                        <strong>Period:</strong> {currentPayroll.month}</div>
+                                                    <div className="col-md-2"><strong>Base
+                                                        Salary:</strong> ${currentPayroll.baseSalary?.toFixed(2)}</div>
+                                                    <div className="col-md-2">
+                                                        <strong>Bonuses:</strong> ${currentPayroll.bonuses?.toFixed(2)}
+                                                    </div>
+                                                    <div className="col-md-2"><strong>Net Salary:</strong>
+                                                        <strong>${currentPayroll.netSalary?.toFixed(2)}</strong></div>
                                                 </div>
                                             </div>
                                         )}
@@ -1663,6 +1725,19 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
+            <div className="row g-3 mb-4">
+                <div className="col-lg-8 col-md-7">
+                    <LineBarCombo data={workload}/>
+                </div>
+                <div className="col-lg-4 col-md-5">
+                    <Donut data={statusDist}/>
+                </div>
+            </div>
+
+            <div className="mt-4">
+                <ProgressTable rows={progressRows}/>
+            </div>
+
 
             {/* === Modals === */}
             {/* ADD EMPLOYEE */}
@@ -1679,7 +1754,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Username*"
                             value={form.username || ""}
-                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                            onChange={(e) => setForm({...form, username: e.target.value})}
                             required
                         />
                     </div>
@@ -1689,7 +1764,7 @@ export default function AdminDashboard() {
                             type="password"
                             placeholder="Parolă*"
                             value={form.password || ""}
-                            onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            onChange={(e) => setForm({...form, password: e.target.value})}
                             required
                         />
                     </div>
@@ -1697,7 +1772,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.role || "EMPLOYEE"}
-                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                            onChange={(e) => setForm({...form, role: e.target.value})}
                         >
                             <option value="EMPLOYEE">Employee</option>
                             <option value="ADMIN">Admin</option>
@@ -1707,7 +1782,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.active !== undefined ? form.active.toString() : "true"}
-                            onChange={(e) => setForm({ ...form, active: e.target.value === "true" })}
+                            onChange={(e) => setForm({...form, active: e.target.value === "true"})}
                         >
                             <option value="true">Activ</option>
                             <option value="false">Inactiv</option>
@@ -1718,7 +1793,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Nume (opțional)"
                             value={form.name || ""}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            onChange={(e) => setForm({...form, name: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1727,7 +1802,7 @@ export default function AdminDashboard() {
                             type="email"
                             placeholder="Email (opțional)"
                             value={form.email || ""}
-                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            onChange={(e) => setForm({...form, email: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1738,14 +1813,14 @@ export default function AdminDashboard() {
                             min="0"
                             placeholder="Rată orară (opțional)"
                             value={form.hourlyRate || ""}
-                            onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                            onChange={(e) => setForm({...form, hourlyRate: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
                         <select
                             className="form-select"
                             value={form.seniority || "JUNIOR"}
-                            onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+                            onChange={(e) => setForm({...form, seniority: e.target.value})}
                         >
                             <option value="JUNIOR">Junior</option>
                             <option value="MID">Mid</option>
@@ -1770,7 +1845,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="ID Angajat*"
                             value={form.id || ""}
-                            onChange={(e) => setForm({ ...form, id: e.target.value })}
+                            onChange={(e) => setForm({...form, id: e.target.value})}
                             required
                         />
                     </div>
@@ -1778,7 +1853,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.active !== undefined ? form.active.toString() : ""}
-                            onChange={(e) => setForm({ ...form, active: e.target.value === "true" })}
+                            onChange={(e) => setForm({...form, active: e.target.value === "true"})}
                         >
                             <option value="">Status (opțional)</option>
                             <option value="true">Activ</option>
@@ -1790,7 +1865,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Username (opțional)"
                             value={form.username || ""}
-                            onChange={(e) => setForm({ ...form, username: e.target.value })}
+                            onChange={(e) => setForm({...form, username: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1798,7 +1873,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Nume (opțional)"
                             value={form.name || ""}
-                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            onChange={(e) => setForm({...form, name: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1807,14 +1882,14 @@ export default function AdminDashboard() {
                             type="email"
                             placeholder="Email (opțional)"
                             value={form.email || ""}
-                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            onChange={(e) => setForm({...form, email: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
                         <select
                             className="form-select"
                             value={form.role || ""}
-                            onChange={(e) => setForm({ ...form, role: e.target.value })}
+                            onChange={(e) => setForm({...form, role: e.target.value})}
                         >
                             <option value="">Rol (opțional)</option>
                             <option value="EMPLOYEE">Employee</option>
@@ -1829,14 +1904,14 @@ export default function AdminDashboard() {
                             min="0"
                             placeholder="Rată orară (opțional)"
                             value={form.hourlyRate || ""}
-                            onChange={(e) => setForm({ ...form, hourlyRate: e.target.value })}
+                            onChange={(e) => setForm({...form, hourlyRate: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
                         <select
                             className="form-select"
                             value={form.seniority || ""}
-                            onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+                            onChange={(e) => setForm({...form, seniority: e.target.value})}
                         >
                             <option value="">Senioritate (opțional)</option>
                             <option value="JUNIOR">Junior</option>
@@ -1863,7 +1938,7 @@ export default function AdminDashboard() {
                     className="form-control"
                     placeholder="ID Angajat*"
                     value={form.id || ""}
-                    onChange={(e) => setForm({ ...form, id: e.target.value })}
+                    onChange={(e) => setForm({...form, id: e.target.value})}
                     required
                 />
                 <small className="text-muted mt-2">
@@ -1885,7 +1960,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Task ID"
                             value={form.taskId || ""}
-                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                            onChange={(e) => setForm({...form, taskId: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1893,7 +1968,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Employee ID"
                             value={form.employeeId || ""}
-                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                            onChange={(e) => setForm({...form, employeeId: e.target.value})}
                         />
                     </div>
                 </div>
@@ -1913,7 +1988,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Task ID"
                             value={form.taskId || ""}
-                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                            onChange={(e) => setForm({...form, taskId: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -1921,7 +1996,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Employee ID"
                             value={form.employeeId || ""}
-                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                            onChange={(e) => setForm({...form, employeeId: e.target.value})}
                         />
                     </div>
                 </div>
@@ -1939,7 +2014,7 @@ export default function AdminDashboard() {
                     className="form-control"
                     placeholder="Task ID"
                     value={form.taskId || ""}
-                    onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                    onChange={(e) => setForm({...form, taskId: e.target.value})}
                 />
             </Modal>
             {/* VIEW ASSIGNMENTS FOR TASK */}
@@ -1954,52 +2029,53 @@ export default function AdminDashboard() {
                     className="form-control"
                     placeholder="Task ID"
                     value={form.taskId || ""}
-                    onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                    onChange={(e) => setForm({...form, taskId: e.target.value})}
                 />
             </Modal>
 
             {/* GENERATE REPORT */}
-         {/* GENERATE REPORT */}
-         <Modal
-             open={modal === "GENERATE_REPORT"}
-             title="Generează raport lunar"
-             onClose={close}
-             onSubmit={submitGenerateReport}
-             submitLabel="Generează"
-         >
-             <div className="row g-2">
-                 <div className="col-md-4">
-                     <input
-                         className="form-control"
-                         placeholder="Employee ID*"
-                         value={form.employeeId || ""}
-                         onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                         required
-                     />
-                 </div>
-                 <div className="col-md-4">
-                     <input
-                         className="form-control"
-                         placeholder="An (ex: 2024)*"
-                         value={form.year || ""}
-                         onChange={(e) => setForm({ ...form, year: e.target.value })}
-                         required
-                     />
-                 </div>
-                 <div className="col-md-4">
-                     <input
-                         className="form-control"
-                         placeholder="Lună (1-12)*"
-                         value={form.month || ""}
-                         onChange={(e) => setForm({ ...form, month: e.target.value })}
-                         required
-                     />
-                 </div>
-             </div>
-             <small className="text-muted mt-2">
-                 * Toate câmpurile sunt obligatorii. Raportul va fi generat pentru angajatul specificat și perioada selectată.
-             </small>
-         </Modal>
+            {/* GENERATE REPORT */}
+            <Modal
+                open={modal === "GENERATE_REPORT"}
+                title="Generează raport lunar"
+                onClose={close}
+                onSubmit={submitGenerateReport}
+                submitLabel="Generează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="Employee ID*"
+                            value={form.employeeId || ""}
+                            onChange={(e) => setForm({...form, employeeId: e.target.value})}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="An (ex: 2024)*"
+                            value={form.year || ""}
+                            onChange={(e) => setForm({...form, year: e.target.value})}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-4">
+                        <input
+                            className="form-control"
+                            placeholder="Lună (1-12)*"
+                            value={form.month || ""}
+                            onChange={(e) => setForm({...form, month: e.target.value})}
+                            required
+                        />
+                    </div>
+                </div>
+                <small className="text-muted mt-2">
+                    * Toate câmpurile sunt obligatorii. Raportul va fi generat pentru angajatul specificat și perioada
+                    selectată.
+                </small>
+            </Modal>
 
             {/* IMPORT XML */}
             <Modal
@@ -2014,7 +2090,7 @@ export default function AdminDashboard() {
                     type="file"
                     accept=".xml"
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                        setForm({ ...form, file: e.target.files?.[0] })
+                        setForm({...form, file: e.target.files?.[0]})
                     }
                 />
                 {form.file && (
@@ -2038,7 +2114,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Task ID"
                             value={form.taskId || ""}
-                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                            onChange={(e) => setForm({...form, taskId: e.target.value})}
                             required
                             disabled
                         />
@@ -2049,7 +2125,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Titlu task"
                             value={form.title || ""}
-                            onChange={(e) => setForm({ ...form, title: e.target.value })}
+                            onChange={(e) => setForm({...form, title: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2057,7 +2133,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.type || ""}
-                            onChange={(e) => setForm({ ...form, type: e.target.value })}
+                            onChange={(e) => setForm({...form, type: e.target.value})}
                         >
                             <option value="">Selectează tipul</option>
                             <option value="REPORT">REPORT</option>
@@ -2077,7 +2153,7 @@ export default function AdminDashboard() {
                             max="5"
                             placeholder="Dificultate"
                             value={form.difficulty || ""}
-                            onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
+                            onChange={(e) => setForm({...form, difficulty: e.target.value})}
                         />
                     </div>
                     <div className="col-12">
@@ -2086,7 +2162,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Skills (separate prin virgulă)"
                             value={form.requiredSkills || ""}
-                            onChange={(e) => setForm({ ...form, requiredSkills: e.target.value })}
+                            onChange={(e) => setForm({...form, requiredSkills: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2096,7 +2172,7 @@ export default function AdminDashboard() {
                             type="number"
                             placeholder="Durată planificată"
                             value={form.plannedDuration || ""}
-                            onChange={(e) => setForm({ ...form, plannedDuration: e.target.value })}
+                            onChange={(e) => setForm({...form, plannedDuration: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2106,7 +2182,7 @@ export default function AdminDashboard() {
                             type="number"
                             placeholder="Durată estimată"
                             value={form.predictedDuration || ""}
-                            onChange={(e) => setForm({ ...form, predictedDuration: e.target.value })}
+                            onChange={(e) => setForm({...form, predictedDuration: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2116,7 +2192,7 @@ export default function AdminDashboard() {
                             type="date"
                             placeholder="Deadline"
                             value={form.deadline || ""}
-                            onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                            onChange={(e) => setForm({...form, deadline: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2128,7 +2204,7 @@ export default function AdminDashboard() {
                             max="5"
                             placeholder="Prioritate"
                             value={form.priority || ""}
-                            onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                            onChange={(e) => setForm({...form, priority: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2139,7 +2215,7 @@ export default function AdminDashboard() {
                             step="0.01"
                             placeholder="Venit"
                             value={form.revenue || ""}
-                            onChange={(e) => setForm({ ...form, revenue: e.target.value })}
+                            onChange={(e) => setForm({...form, revenue: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2150,7 +2226,7 @@ export default function AdminDashboard() {
                             step="0.01"
                             placeholder="Alte costuri"
                             value={form.otherCosts || ""}
-                            onChange={(e) => setForm({ ...form, otherCosts: e.target.value })}
+                            onChange={(e) => setForm({...form, otherCosts: e.target.value})}
                         />
                     </div>
                     <div className="col-12">
@@ -2158,7 +2234,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.status || ""}
-                            onChange={(e) => setForm({ ...form, status: e.target.value })}
+                            onChange={(e) => setForm({...form, status: e.target.value})}
                         >
                             <option value="">Selectează statusul</option>
                             <option value="NEW">NEW</option>
@@ -2184,7 +2260,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Employee ID"
                             value={form.employeeId || ""}
-                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                            onChange={(e) => setForm({...form, employeeId: e.target.value})}
                             required
                         />
                     </div>
@@ -2193,7 +2269,7 @@ export default function AdminDashboard() {
                         <select
                             className="form-select"
                             value={form.month || ""}
-                            onChange={(e) => setForm({ ...form, month: e.target.value })}
+                            onChange={(e) => setForm({...form, month: e.target.value})}
                             required
                         >
                             <option value="">Select Month</option>
@@ -2217,7 +2293,7 @@ export default function AdminDashboard() {
                             className="form-control"
                             placeholder="Year"
                             value={form.year || ""}
-                            onChange={(e) => setForm({ ...form, year: e.target.value })}
+                            onChange={(e) => setForm({...form, year: e.target.value})}
                             required
                         />
                     </div>
@@ -2230,7 +2306,7 @@ export default function AdminDashboard() {
                             min="0"
                             placeholder="Bonuses"
                             value={form.bonuses || ""}
-                            onChange={(e) => setForm({ ...form, bonuses: e.target.value })}
+                            onChange={(e) => setForm({...form, bonuses: e.target.value})}
                         />
                     </div>
                     <div className="col-md-6">
@@ -2242,12 +2318,13 @@ export default function AdminDashboard() {
                             min="0"
                             placeholder="Deductions"
                             value={form.deductions || ""}
-                            onChange={(e) => setForm({ ...form, deductions: e.target.value })}
+                            onChange={(e) => setForm({...form, deductions: e.target.value})}
                         />
                     </div>
                 </div>
                 <small className="text-muted mt-2">
-                    * Câmpurile obligatorii. Salariul de bază va fi calculat automat pe baza ratei orare și orelor lucrate.
+                    * Câmpurile obligatorii. Salariul de bază va fi calculat automat pe baza ratei orare și orelor
+                    lucrate.
                 </small>
             </Modal>
         </div>
