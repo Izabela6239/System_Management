@@ -1,13 +1,11 @@
 package com.example.app.managementapi.ManagementApiApplication.controller;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
+import com.example.app.managementapi.ManagementApiApplication.dto.PayrollCalculationRequest;
 import com.example.app.managementapi.ManagementApiApplication.dto.TaskDto;
+import com.example.app.managementapi.ManagementApiApplication.entity.*;
 import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import com.example.app.managementapi.ManagementApiApplication.mapper.TaskMapper;
-import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
-import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
-import com.example.app.managementapi.ManagementApiApplication.entity.MonthlyReport;
-import com.example.app.managementapi.ManagementApiApplication.entity.Task;
 import com.example.app.managementapi.ManagementApiApplication.repository.*;
 import com.example.app.managementapi.ManagementApiApplication.service.EmployeeService;
 import com.example.app.managementapi.ManagementApiApplication.service.MonthlyReportService;
@@ -210,4 +208,37 @@ public class    ControllerForAdmin {
     public List<User> importEmployeesXml(@RequestPart("file") MultipartFile file) {
         return employeeService.importEmployeesXml(file);
     }
+
+    @PostMapping("/payroll/calculate")
+    public ResponseEntity<Payroll> calculatePayroll(
+            @RequestBody PayrollCalculationRequest req,
+            Authentication authentication) {
+
+        try {
+            String username = authentication.getName();
+            User adminUser = userRepository.findByUsername(username).orElseThrow();
+            Admin admin = adminRepository.findByUserId(adminUser.getId()).orElseThrow();
+
+            Payroll payroll = employeeService.calculatePayroll(
+                    req.getEmployeeId(),
+                    req.getMonth(),
+                    req.getYear(),
+                    req.getBonuses(),
+                    req.getDeductions(),
+                    admin.getId()
+            );
+
+            return ResponseEntity.ok(payroll);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @GetMapping("/payroll/history")
+    public List<Payroll> getPayrollHistory() {
+        return employeeService.getPayrollHistory();
+    }
+
+
 }
