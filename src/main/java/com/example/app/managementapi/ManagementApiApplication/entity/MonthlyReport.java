@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
+import com.example.app.managementapi.ManagementApiApplication.auth.User;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,17 +20,27 @@ public class MonthlyReport {
 
     @ManyToOne
     @JoinColumn(name = "employee_id")
-    private Employee employee;
+    private User employee;
 
     @ManyToOne
     @JoinColumn(name = "admin_id")
     private Admin admin;
 
+    // ✅ Înlocuiește YearMonth cu câmpuri separate
+    @Column(name = "year")
+    private Integer year;
+
     @Column(name = "month")
-    private YearMonth month;
+    private Integer month; // 1-12
+
     private Integer totalTasks = 0;
     private Double avgGrade;
     private Double totalRevenue;
     private Double totalCosts;
     private Double productivityScore;
+
+    // Helper method pentru a obține YearMonth dacă este necesar
+    public YearMonth getYearMonth() {
+        return YearMonth.of(year, month);
+    }
 }

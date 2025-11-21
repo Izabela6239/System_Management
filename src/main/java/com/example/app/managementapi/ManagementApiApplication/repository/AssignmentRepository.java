@@ -36,11 +36,14 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     List<Assignment> findByAdminId(@Param("adminId") Long adminId);
 
     @Query("""
-    SELECT a FROM Assignment a
-    WHERE a.employee.id = :employeeId
-    AND MONTH(a.finishedAt) = :month
-    AND YEAR(a.finishedAt) = YEAR(CURRENT_DATE)
-""")
-    List<Assignment> findByEmployeeIdAndFinishedAtYearMonth(Long employeeId, int month);
-
+        SELECT a FROM Assignment a
+        WHERE a.employee.id = :employeeId
+        AND FUNCTION('MONTH', a.finishedAt) = :month
+        AND FUNCTION('YEAR', a.finishedAt) = :year
+    """)
+    List<Assignment> findByEmployeeIdAndFinishedAtYearMonth(
+            @Param("employeeId") Long employeeId,
+            @Param("month") int month,
+            @Param("year") int year
+    );
 }

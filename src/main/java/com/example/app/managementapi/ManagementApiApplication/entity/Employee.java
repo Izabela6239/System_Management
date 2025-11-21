@@ -1,6 +1,7 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.EmployeeListener;
+import com.example.app.managementapi.ManagementApiApplication.auth.User;
 import com.example.app.managementapi.ManagementApiApplication.enums.Seniority;
 import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -76,9 +77,9 @@ public class Employee {
     @JsonIgnore
     private List<Notification> notifications;
 
-    @OneToMany(mappedBy = "employee")
+   /* @OneToMany(mappedBy = "employee")
     @JsonIgnore
-    private List<MonthlyReport> reports;
+    private List<MonthlyReport> reports;*/
 
     public Long getId() {
         return id;
@@ -185,13 +186,17 @@ public class Employee {
         this.notifications = notifications;
     }
 
-    public List<MonthlyReport> getReports() {
+    public void setUser(User user) {
+        this.id = user.getId();
+    }
+
+    /*public List<MonthlyReport> getReports() {
         return reports;
     }
 
     public void setReports(List<MonthlyReport> reports) {
         this.reports = reports;
-    }
+    }*/
 }
 
 

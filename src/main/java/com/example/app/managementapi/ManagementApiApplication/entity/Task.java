@@ -1,10 +1,12 @@
 package com.example.app.managementapi.ManagementApiApplication.entity;
 
 import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -32,7 +34,9 @@ public class Task {
 
     private Integer plannedDurationMin;
     private Integer predictedDurationMin;
-    private java.time.LocalDateTime deadline;
+    @Column(name = "deadline")
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate deadline;
     private Integer priority = 3;
     private Double revenue = 0.0;
     private Double otherCosts = 0.0;
@@ -111,11 +115,11 @@ public class Task {
         this.predictedDurationMin = predictedDurationMin;
     }
 
-    public LocalDateTime getDeadline() {
+    public LocalDate getDeadline() {
         return deadline;
     }
 
-    public void setDeadline(LocalDateTime deadline) {
+    public void setDeadline(LocalDate deadline) {
         this.deadline = deadline;
     }
 
@@ -165,6 +169,19 @@ public class Task {
 
     public void setAiHistory(AiTaskHistory aiHistory) {
         this.aiHistory = aiHistory;
+    }
+
+    public void setRequiredSkills(String requiredSkills) {
+        this.requiredSkillsJson = requiredSkills;
+    }
+
+
+    public void setPlannedDuration(Integer plannedDuration) {
+        this.plannedDurationMin = plannedDuration;
+    }
+
+    public void setPredictedDuration(Integer predictedDuration) {
+        this.predictedDurationMin = predictedDuration;
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.service;
 
+import com.example.app.managementapi.ManagementApiApplication.dto.TaskDto;
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
 import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
@@ -12,6 +13,7 @@ import com.example.app.managementapi.ManagementApiApplication.repository.TaskRep
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -183,5 +185,23 @@ public class ServiceForAdmin {
         // actualizează statusul task-ului
         t.setStatus(TaskStatus.DONE);
         return taskRepository.save(t);
+    }
+    public Task updateTask(Long taskId, TaskDto updateRequest) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        if (updateRequest.getTitle() != null) task.setTitle(updateRequest.getTitle());
+        if (updateRequest.getType() != null) task.setType(updateRequest.getType());
+        if (updateRequest.getDifficulty() != null) task.setDifficulty(updateRequest.getDifficulty());
+        if (updateRequest.getRequiredSkills() != null) task.setRequiredSkills(updateRequest.getRequiredSkills());
+        if (updateRequest.getPlannedDuration() != null) task.setPlannedDuration(updateRequest.getPlannedDuration());
+        if (updateRequest.getPredictedDuration() != null) task.setPredictedDuration(updateRequest.getPredictedDuration());
+        if (updateRequest.getDeadline() != null) task.setDeadline(LocalDate.from(updateRequest.getDeadline()));
+        if (updateRequest.getPriority() != null) task.setPriority(updateRequest.getPriority());
+        if (updateRequest.getRevenue() != null) task.setRevenue(updateRequest.getRevenue());
+        if (updateRequest.getOtherCosts() != null) task.setOtherCosts(updateRequest.getOtherCosts());
+        if (updateRequest.getStatus() != null) task.setStatus(updateRequest.getStatus());
+
+        return taskRepository.save(task);
     }
 }

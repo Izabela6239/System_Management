@@ -13,12 +13,30 @@ export type TaskStatus =
 export interface AdminTask {
     id: number;
     title: string;
-    status: string;
-    priority: number;
-    deadline?: string;
+    type?: string;
     difficulty?: number;
+    requiredSkills?: any;
+    plannedDuration?: number;
+    predictedDuration?: number;
+    deadline?: string;
+    priority?: number;
     revenue?: number;
     otherCosts?: number;
+    status?: string;
+}
+
+export interface TaskUpdateData {
+    title?: string;
+    type?: string;
+    difficulty?: number;
+    requiredSkills?: string;
+    plannedDuration?: number;
+    predictedDuration?: number;
+    deadline?: string;
+    priority?: number;
+    revenue?: number;
+    otherCosts?: number;
+    status?: string;
 }
 
 export interface AdminUser {
@@ -56,12 +74,45 @@ export interface Assignment {
 export interface MonthlyReport {
     id: number;
     employeeId: number;
+    employee?: {
+        id: number;
+        // other employee properties
+    };
     year: number;
     month: number;
     totalTasks: number;
-    completedTasks: number;
-    hoursWorked?: number;
-    generatedAt: string;
+    avgGrade?: number;
+    totalRevenue?: number;
+    totalCosts?: number;
+    productivityScore?: number;
+    createdAt?: string; // or Date
+}
+
+export interface Payroll {
+    id: number;
+    employeeId: number;
+    employee?: {
+        name: string;
+        hourlyRate: number;
+    };
+    adminId: number;
+    admin?: {
+        name: string;
+    };
+    month: string;
+    baseSalary: number;
+    bonuses: number;
+    deductions: number;
+    netSalary: number;
+    createdAt?: string;
+}
+
+export interface PayrollCalculationRequest {
+    employeeId: number;
+    month: number;
+    year: number;
+    bonuses?: number;
+    deductions?: number;
 }
 
 /* ========== BASE ========== */
@@ -243,9 +294,60 @@ export const getAssignmentsByTask = async (taskId: number): Promise<Assignment[]
 };
 
 /* ========== REPORTS ========== */
-export const generateMonthlyReport = async (employeeId: number, year: number, month: number) => {
-    const { data } = await axios.post(`${base}/reports/generate`, null, { params: { employeeId, year, month } });
-    return data;
+// AdminService.ts
+// AdminService.ts
+
+// Funcție pentru a obține toate rapoartele
+export const getAllMonthlyReports = async (): Promise<any[]> => {
+    try {
+        const response = await fetch(`http://localhost:8080/admin/reports/all`, {
+            method: 'GET', // ✅ Schimbă din POST în GET
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json(); // ✅ Adaugă asta pentru a extrage datele
+        return data;
+
+    } catch (error: any) {
+        console.error('❌ Error fetching all reports:', error);
+        throw error;
+    }
+};
+
+// Funcția existentă pentru generare raport
+export const generateMonthlyReport = async (
+    employeeId: number,
+    year: number,
+    month: number
+): Promise<any> => {
+    try {
+        const response = await fetch(`http://localhost:8080/admin/generate?employeeId=${employeeId}&year=${year}&month=${month}`, {
+            // ✅ Corectează URL-ul: /admin/reports/generate în loc de /admin/generate
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json(); // ✅ Adaugă asta pentru a extrage datele
+        return data;
+
+    } catch (error: any) {
+        console.error('❌ Error generating monthly report:', error);
+        throw error;
+    }
 };
 
 /* ========== IMPORT XML ========== */
@@ -256,4 +358,78 @@ export const importEmployeesXml = async (file: File) => {
         headers: { "Content-Type": "multipart/form-data" },
     });
     return data ?? [];
+};
+
+export const calculatePayroll = async (payrollData: PayrollCalculationRequest): Promise<Payroll> => {
+    try {
+        const response = await fetch(`${base}/admin/payroll/calculate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payrollData),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error calculating payroll: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error in calculatePayroll:', error);
+        throw error;
+    }
+};
+
+export const getPayrollHistory = async (): Promise<Payroll[]> => {
+    try {
+        const response = await fetch(`${base}/admin/payroll/history`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error fetching payroll history: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error in getPayrollHistory:', error);
+        throw error;
+    }
+};
+
+export const updateTask = async (taskId: number, taskData: any) => {
+    try {
+        // Clean up the data before sending
+        const cleanData = {
+            ...taskData,
+            requiredSkills: typeof taskData.requiredSkills === 'string'
+                ? JSON.parse(taskData.requiredSkills.replace(/\\"/g, '"'))
+                : taskData.requiredSkills
+        };
+
+        const response = await fetch(`${base}/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(cleanData),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error updating task: ${response.statusText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error in updateTask:', error);
+        throw error;
+    }
+
+
+
+// Funcție pentru obținerea istoricului salariilor
 };

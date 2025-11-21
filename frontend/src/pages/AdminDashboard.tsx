@@ -23,7 +23,10 @@ import {
     AdminTask,
     AdminUser,
     Assignment,
-    MonthlyReport, getAssignmentsByTask,
+    MonthlyReport, getAssignmentsByTask, getAllMonthlyReports, updateTask,
+    calculatePayroll,
+    getPayrollHistory,
+    Payroll
 } from "../services/AdminService";
 
 // !!! asigură-te că importurile către CSS sunt corecte:
@@ -36,7 +39,8 @@ type View =
     | "MY_TASKS"
     | "EMPLOYEES"
     | "ASSIGNMENTS"
-    | "REPORTS";
+    | "REPORTS"
+    | "PAYROLL";
 
 type ModalType =
     | "NONE"
@@ -48,14 +52,32 @@ type ModalType =
     | "ASSIGN_TO_ME"
     | "VIEW_ASSIGNMENTS"
     | "GENERATE_REPORT"
-    | "IMPORT_XML";
+    | "IMPORT_XML"
+    |"EDIT_TASK"
+    |"CALCULATE_PAYROLL"  // ← ADAUGĂ ACESTA
+    | "VIEW_PAYROLL_HISTORY"; // ← ȘI ACESTA
 
 type TableRow = {
     id: number;
-    col1: string;
-    col2: string;
-    col3: string;
-    col4: string;
+    Title: string;
+    Type: string;
+    Difficulty: number;
+    RequiredSkills: string;
+    PlannedDuration: number;
+    PredictedDuration: number;
+    Deadline: string;
+    Priority: number;
+    Revenue: number;
+    OtherCosts: number;
+    Status: string;
+}
+
+type TableRow1= {
+    id: number;
+    Username: string;
+    Email: string;
+    Status: string;
+    Role: string;
     actions?: React.ReactNode;
 };
 
@@ -114,15 +136,100 @@ function Modal({
 
 export default function AdminDashboard() {
     const [view, setView] = useState<View>("TASKS_UNASSIGNED");
+    const [payrollHistory, setPayrollHistory] = useState<Payroll[]>([]);
+    const [currentPayroll, setCurrentPayroll] = useState<Payroll | null>(null);
 
     const [employees, setEmployees] = useState<AdminUser[]>([]);
     const [unassignedTasks, setUnassignedTasks] = useState<AdminTask[]>([]);
     const [myTasks, setMyTasks] = useState<AdminTask[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [report, setReport] = useState<MonthlyReport | null>(null);
+    // În componenta AdminDashboard, adaugă aceste state-uri
+    const [allReports, setAllReports] = useState<MonthlyReport[]>([]);
+    const [viewMode, setViewMode] = useState<'view' | 'generate'>('view'); // 'view' sau 'generate'
 
     const [modal, setModal] = useState<ModalType>("NONE");
     const [form, setForm] = useState<any>({});
+    // Adaugă state pentru rândurile expandate
+    const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+    const [loading, setLoading] = useState<boolean>(false);
+
+    const toggleRow = (id: number) => {
+        const newExpanded = new Set(expandedRows);
+        if (newExpanded.has(id)) {
+            newExpanded.delete(id);
+        } else {
+            newExpanded.add(id);
+        }
+        setExpandedRows(newExpanded);
+    };
+
+    // Funcție pentru a încărca toate rapoartele
+    const fetchAllReports = async () => {
+        try {
+            const reports = await getAllMonthlyReports();
+            setAllReports(reports);
+            console.log("📊 All reports loaded:", reports);
+        } catch (error) {
+            console.error("❌ Error loading all reports:", error);
+            setAllReports([]);
+        } finally {
+        }
+    };
+    const submitCalculatePayroll = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const { employeeId, month, year, bonuses, deductions } = form;
+
+        console.log("📝 Calculate payroll form submitted:", { employeeId, month, year, bonuses, deductions });
+
+        if (!employeeId || !month || !year) {
+            alert("ID-ul angajatului, luna și anul sunt obligatorii!");
+            return;
+        }
+
+        try {
+            console.log("🔄 Calculating payroll...");
+
+            const payrollData = {
+                employeeId: Number(employeeId),
+                month: Number(month),
+                year: Number(year),
+                bonuses: bonuses ? Number(bonuses) : 0,
+                deductions: deductions ? Number(deductions) : 0
+            };
+
+            console.log("📤 Sending payroll data:", payrollData);
+
+            const result = await calculatePayroll(payrollData);
+
+            console.log("✅ Payroll calculated successfully:", result);
+            setCurrentPayroll(result);
+
+            alert(`Salariu calculat cu succes!\nSalariu net: $${result.netSalary.toFixed(2)}`);
+
+            // Reîncarcă istoricul
+            await fetchPayrollHistory();
+
+            close();
+
+        } catch (error) {
+            console.error("❌ Error calculating payroll:", error);
+            // @ts-ignore
+            alert("Eroare la calculul salariului: " + error.message);
+        }
+    };
+
+// Funcție pentru încărcarea istoricului salariilor
+    const fetchPayrollHistory = async () => {
+        try {
+            const history = await getPayrollHistory();
+            setPayrollHistory(Array.isArray(history) ? history : []);
+            console.log("📊 Payroll history loaded:", history);
+        } catch (error) {
+            console.error("❌ Error loading payroll history:", error);
+            setPayrollHistory([]);
+        }
+    };
 
     const open = (m: ModalType, initial?: any) => {
         setForm(initial || {});
@@ -132,6 +239,12 @@ export default function AdminDashboard() {
         setModal("NONE");
         setForm({});
     };
+
+    useEffect(() => {
+        if (view === "PAYROLL") {
+            fetchPayrollHistory();
+        }
+    }, [view]);
 
     // bootstrap data
     // useEffect pentru a încărca employees când view-ul se schimbă
@@ -150,6 +263,54 @@ export default function AdminDashboard() {
             loadEmployees();
         }
     }, [view]);
+
+    // Adaugă acest useEffect după useEffect-ul pentru edit employee
+    useEffect(() => {
+        if (form.executeEditTask && form.taskId) {
+            const editTask = async () => {
+                try {
+                    console.log("🔄 Editing task...");
+                    console.log("Task ID:", form.taskId);
+                    console.log("Edit data:", form);
+
+                    // Pregătește datele pentru backend
+                    const updateData: any = {};
+
+                    if (form.title !== undefined) updateData.title = form.title;
+                    if (form.type !== undefined) updateData.type = form.type;
+                    if (form.difficulty !== undefined) updateData.difficulty = Number(form.difficulty);
+                    if (form.requiredSkills !== undefined) updateData.requiredSkills = form.requiredSkills;
+                    if (form.plannedDuration !== undefined) updateData.plannedDuration = Number(form.plannedDuration);
+                    if (form.predictedDuration !== undefined) updateData.predictedDuration = Number(form.predictedDuration);
+                    if (form.deadline !== undefined) updateData.deadline = form.deadline;
+                    if (form.priority !== undefined) updateData.priority = Number(form.priority);
+                    if (form.revenue !== undefined) updateData.revenue = Number(form.revenue);
+                    if (form.otherCosts !== undefined) updateData.otherCosts = Number(form.otherCosts);
+                    if (form.status !== undefined) updateData.status = form.status;
+
+                    console.log("📤 Sending task update data:", updateData);
+
+                    // Apel către backend
+                    await updateTask(Number(form.taskId), updateData);
+
+                    console.log("✅ Task updated successfully!");
+
+                    // Refresh listele de task-uri
+                    await Promise.all([refreshUnassigned(), refreshMyTasks()]);
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error editing task:", error);
+                    // Resetează doar flag-ul de execuție
+                    setForm((prev: any) => ({ ...prev, executeEditTask: false }));
+                }
+            };
+
+            editTask();
+        }
+    }, [form.executeEditTask, form.taskId, form.title, form.type, form.difficulty, form.requiredSkills, form.plannedDuration, form.predictedDuration, form.deadline, form.priority, form.revenue, form.otherCosts, form.status]);
 
     // useEffect pentru edit employee
     useEffect(() => {
@@ -367,6 +528,48 @@ export default function AdminDashboard() {
         }
     }, [form.executeUnassign, form.unassignTaskId, form.unassignEmployeeId]);
 
+    // useEffect pentru generarea raportului lunar
+    useEffect(() => {
+        if (form.executeGenerateReport && form.employeeId && form.year && form.month) {
+            const generateReport = async () => {
+                try {
+                    console.log("🔄 Generating monthly report...");
+                    console.log("Employee ID:", form.employeeId);
+                    console.log("Year:", form.year);
+                    console.log("Month:", form.month);
+
+                    const data = await generateMonthlyReport(
+                        Number(form.employeeId),
+                        Number(form.year),
+                        Number(form.month)
+                    );
+
+                    console.log("✅ Monthly report generated:", data);
+
+                    // Setează raportul și schimbă view-ul
+                    setReport(data);
+                    setView("REPORTS");
+
+                    // Resetează form-ul
+                    setForm({});
+
+                } catch (error) {
+                    console.error("❌ Error generating monthly report:", error);
+                    // Resetează doar flag-ul de execuție
+                    setForm((prev: any) => ({ ...prev, executeGenerateReport: false }));
+                }
+            };
+
+            generateReport();
+        }
+    }, [form.executeGenerateReport, form.employeeId, form.year, form.month]);
+
+    // Înlocuiește useEffect-ul existent pentru rapoarte cu:
+    useEffect(() => {
+        if (view === "REPORTS") {
+            fetchAllReports();
+        }
+    }, [view]);
 
     // useEffect pentru adăugarea unui employee în baza de date
     // useEffect pentru adăugarea unui employee - cu debugging
@@ -504,6 +707,8 @@ export default function AdminDashboard() {
             alert("Eroare la editarea angajatului: " + error.message);
         }
     };
+
+
     const submitDeleteEmployee = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { id } = form;
@@ -550,7 +755,113 @@ export default function AdminDashboard() {
         }
     };
 
+    const submitEditTask = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const { taskId, title, type, difficulty, requiredSkills, plannedDuration, predictedDuration, deadline, priority, revenue, otherCosts, status } = form;
 
+        console.log("🔍 DEBUG - Task ID being sent:", taskId);
+        console.log("🔍 DEBUG - Full form data:", form);
+        console.log("📝 Edit task form submitted:", { taskId, title, type, difficulty });
+
+        if (!taskId) {
+            console.error("❌ Task ID is required");
+            alert("ID-ul task-ului este obligatoriu!");
+            return;
+        }
+
+        try {
+            console.log("🔄 Step 1: Calling updateTask API...");
+
+            // Pregătește datele pentru backend
+            const updateData: any = {
+                title: title,
+                type: type,
+                difficulty: difficulty ? Number(difficulty) : undefined,
+                plannedDuration: plannedDuration ? Number(plannedDuration) : undefined,
+                predictedDuration: predictedDuration ? Number(predictedDuration) : undefined,
+                deadline: deadline,
+                priority: priority ? Number(priority) : undefined,
+                revenue: revenue ? Number(revenue) : undefined,
+                otherCosts: otherCosts ? Number(otherCosts) : undefined,
+                status: status
+            };
+
+            // Procesează requiredSkills separat - SOLUȚIE CORECTĂ
+            if (requiredSkills) {
+                console.log("🔍 DEBUG - Original requiredSkills:", requiredSkills);
+
+                if (Array.isArray(requiredSkills)) {
+                    updateData.requiredSkills = requiredSkills;
+                } else if (typeof requiredSkills === 'string') {
+                    try {
+                        // SOLUȚIE SIMPLĂ: elimină doar backslash-urile din fața ghilimelelor
+                        const cleanedString = requiredSkills.replace(/\\"/g, '"');
+                        console.log("🔍 DEBUG - After cleaning backslashes:", cleanedString);
+
+                        // Elimină ghilimelele exterioare dacă există
+                        let finalString = cleanedString;
+                        if (finalString.startsWith('"') && finalString.endsWith('"')) {
+                            finalString = finalString.slice(1, -1);
+                            console.log("🔍 DEBUG - After removing outer quotes:", finalString);
+                        }
+
+                        console.log("🔍 DEBUG - Final string for parsing:", finalString);
+                        updateData.requiredSkills = JSON.parse(finalString);
+                        console.log("✅ DEBUG - Successfully parsed requiredSkills:", updateData.requiredSkills);
+
+                    } catch (error) {
+                        console.error("❌ Error parsing requiredSkills:", error);
+                        // Fallback: folosește o metodă manuală
+                        try {
+                            // Extrage manual conținutul din array
+                            const match = requiredSkills.match(/\[(.*)\]/);
+                            if (match && match[1]) {
+                                const skillsArray = match[1].split(',').map(s =>
+                                    s.trim().replace(/"/g, '').replace(/\\/g, '')
+                                );
+                                updateData.requiredSkills = skillsArray;
+                                console.log("✅ DEBUG - Manual extraction successful:", skillsArray);
+                            } else {
+                                updateData.requiredSkills = [];
+                            }
+                        } catch (fallbackError) {
+                            console.error("❌ Fallback also failed:", fallbackError);
+                            updateData.requiredSkills = [];
+                        }
+                    }
+                }
+            }
+
+            // Curăță obiectul de valori goale
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] === undefined || updateData[key] === "" ||
+                    (Array.isArray(updateData[key]) && updateData[key].length === 0)) {
+                    delete updateData[key];
+                }
+            });
+
+            console.log("📤 Step 2: Sending update data:", updateData);
+            console.log("🔍 DEBUG - requiredSkills final:", updateData.requiredSkills);
+
+            // Execută apelul API
+            await updateTask(Number(taskId), updateData);
+
+            console.log("✅ Step 3: Task updated successfully in database!");
+
+            // Reîncarcă listele
+            console.log("🔄 Step 4: Refreshing task lists...");
+            await Promise.all([refreshUnassigned(), refreshMyTasks()]);
+
+            // Închide modal-ul
+            console.log("✅ Step 5: Closing modal");
+            close();
+
+        } catch (error) {
+            console.error("❌ Error editing task:", error);
+            // @ts-ignore
+            alert("Eroare la editarea task-ului: " + error.message);
+        }
+    };
     const submitAssign = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { taskId, employeeId } = form;
@@ -622,15 +933,36 @@ export default function AdminDashboard() {
     const submitGenerateReport = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { employeeId, year, month } = form;
-        if (!employeeId || !year || !month) return;
-        const data = await generateMonthlyReport(
-            Number(employeeId),
-            Number(year),
-            Number(month)
-        );
-        setReport(data);
-        setView("REPORTS");
-        close();
+
+        if (!employeeId || !year || !month) {
+            alert("Toate câmpurile sunt obligatorii!");
+            return;
+        }
+
+        console.log("📝 Generate report form submitted:", { employeeId, year, month });
+
+        try {
+            const newReport = await generateMonthlyReport(
+                Number(employeeId),
+                Number(year),
+                Number(month)
+            );
+
+            console.log("✅ Monthly report generated:", newReport);
+
+            // Reîncarcă toate rapoartele după generare
+            await fetchAllReports();
+
+            // Revine la modul de vizualizare
+            setViewMode('view');
+
+            alert('Report generated successfully!');
+            close();
+        } catch (error) {
+            console.error("❌ Error generating monthly report:", error);
+            alert('Error generating report. Please try again.');
+        } finally {
+        }
     };
 
     const submitImportXml = async (e: FormEvent<HTMLFormElement>) => {
@@ -648,7 +980,7 @@ export default function AdminDashboard() {
         () => ({
             unassigned: unassignedTasks.length,
             myTasks: myTasks.length,
-            highPriority: unassignedTasks.filter((t) => (t.priority ?? 0) >= 4).length,
+            highPriority: myTasks.filter((t) => (t.priority ?? 0) === 5).length, // ✅ Schimbat aici
             totalEmployees: employees.length,
         }),
         [unassignedTasks, myTasks, employees]
@@ -660,75 +992,80 @@ export default function AdminDashboard() {
         if (view === "TASKS_UNASSIGNED") {
             return unassignedTasks.map<TableRow>(t => ({
                 id: t.id,
-                col1: t.title,
-                col2: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                col3: t.status,
-                col4: `prio: ${t.priority ?? "-"}`,
-                actions: (
-                    <button
-                        className="btn btn-sm btn-outline-primary"
-                        onClick={() => open("ASSIGN_TO_ME", { taskId: t.id })}
-                    >
-                        Assign to me
-                    </button>
-                ),
+                Title: t.title,
+                Type: t.type || "-",
+                Difficulty: t.difficulty || 0,
+                RequiredSkills: t.requiredSkills ? JSON.stringify(t.requiredSkills) : "-",
+                PlannedDuration: t.plannedDuration || 0,
+                PredictedDuration: t.predictedDuration || 0,
+                Deadline: t.deadline ? new Date(t.deadline).toLocaleDateString() : "-",
+                Priority: t.priority || 0,
+                Revenue: t.revenue || 0,
+                OtherCosts: t.otherCosts || 0,
+                Status: t.status || "NEW"
             }));
         }
 
         if (view === "MY_TASKS") {
             return myTasks.map<TableRow>(t => ({
                 id: t.id,
-                col1: t.title,
-                col2: t.deadline ? new Date(t.deadline).toLocaleDateString() : "",
-                col3: t.status,
-                col4: "",
-                actions: undefined,        // IMPORTANT: există, chiar dacă e undefined
+                Title: t.title,
+                Type: t.type || "-",
+                Difficulty: t.difficulty || 0,
+                RequiredSkills: t.requiredSkills ? JSON.stringify(t.requiredSkills) : "-",
+                PlannedDuration: t.plannedDuration || 0,
+                PredictedDuration: t.predictedDuration || 0,
+                Deadline: t.deadline ? new Date(t.deadline).toLocaleDateString() : "-",
+                Priority: t.priority || 0,
+                Revenue: t.revenue || 0,
+                OtherCosts: t.otherCosts || 0,
+                Status: t.status || "NEW"
             }));
         }
-
-        if (view === "EMPLOYEES") {
-            // Filtrează doar userii cu rolul EMPLOYEE
-            const employeesOnly = employees.filter(user => user.role === "EMPLOYEE");
-
-            console.log("👥 Employees after filtering:", employeesOnly);
-            console.log("🔢 Total users:", employees.length, "Employees only:", employeesOnly.length);
-
-            return employeesOnly.map<TableRow>(user => ({
-                id: user.id,
-                col1: user.username, // Username ca nume afișat
-                col2: user.username.includes('@') ? user.username : `${user.username}@company.com`,
-                col3: user.active ? "✅ Active" : "❌ Inactive",
-                col4: `Role: ${user.role}`,
-                actions: undefined,
-            }));
-        }
-
-        if (view === "ASSIGNMENTS") {
-            return assignments.map<TableRow>(a => ({
-                id: a.id,
-                col1: `Task #${a.taskId}`,
-                col2: `Emp #${a.employeeId}`,
-                col3: `Admin #${a.adminId}`,
-                col4: "",
-                actions: undefined,
-            }));
-        }
-
-        if (view === "REPORTS" && report) {
-            return [{
-                id: report.id,
-                col1: `Emp #${report.employeeId}`,
-                col2: `${report.year}-${String(report.month).padStart(2, "0")}`,
-                col3: `Completed: ${report.completedTasks}/${report.totalTasks}`,
-                col4: "",
-                actions: undefined,
-            }];
-        }
-
         return [];
-    }, [view, unassignedTasks, myTasks, assignments, report, employees]);
+    }, [unassignedTasks, myTasks, view]);
+    const tableRows1: TableRow1[] = useMemo(() => {
+        if (view === "EMPLOYEES") {
+            const employeesOnly = employees.filter(user => user.role === "EMPLOYEE");
+            return employeesOnly.map<TableRow1>(user => ({
+                id: user.id,
+                Username: user.username,
+                Email: user.username.includes('@') ? user.username : `${user.username}@company.com`,
+                Status: user.active ? "✅ Active" : "❌ Inactive",
+                Role: `Role: ${user.role}`,
+                actions: undefined,
+            }));
+        }
 
-    /* ===== Render ===== */
+        /*  if (view === "ASSIGNMENTS") {
+         return assignments.map<TableRow>(a => ({
+             id: a.id,
+             col1: `Task #${a.taskId}`,
+             col2: `Emp #${a.employeeId}`,
+             col3: `Admin #${a.adminId}`,
+             col4: "",
+             actions: undefined,
+         }));
+     }*/
+
+        /* if (view === "REPORTS" && report) {
+             return [{
+                 id: report.id,
+                 col1: `Emp #${report.employeeId}`,
+                 col2: `${report.year}-${String(report.month).padStart(2, "0")}`,
+                 col3: `Completed: ${report.completedTasks}/${report.totalTasks}`,
+                 col4: "",
+                 actions: undefined,
+             }];
+         }
+     */
+            return []; // ⚠️ return default
+
+        }, [employees, view]);
+
+
+        /* ===== Render ===== */
+
 
     return (
         <div className="layout-wrapper layout-content-navbar">
@@ -818,6 +1155,15 @@ export default function AdminDashboard() {
                                 List employees
                             </button>
                             <button
+                                className={
+                                    "btn w-100 text-start mb-1 " +
+                                    (view === "PAYROLL" ? "btn-primary" : "btn-light")
+                                }
+                                onClick={() => setView("PAYROLL")}
+                            >
+                                Payroll Management
+                            </button>
+                            <button
                                 className="btn w-100 text-start mb-1 btn-light"
                                 onClick={() => open("ADD_EMP")}
                             >
@@ -850,20 +1196,11 @@ export default function AdminDashboard() {
                             <button
                                 className={
                                     "btn w-100 text-start mb-1 " +
-                                    (view === "ASSIGNMENTS" ? "btn-primary" : "btn-light")
-                                }
-                                onClick={() => setView("ASSIGNMENTS")}
-                            >
-                                View assignments
-                            </button>
-                            <button
-                                className={
-                                    "btn w-100 text-start mb-1 " +
                                     (view === "REPORTS" ? "btn-primary" : "btn-light")
                                 }
-                                onClick={() => open("GENERATE_REPORT")}
+                                onClick={() => setView("REPORTS")}
                             >
-                                Generate monthly report…
+                                View Reports
                             </button>
                             <button
                                 className="btn w-100 text-start mb-1 btn-light"
@@ -927,37 +1264,397 @@ export default function AdminDashboard() {
                                     {view === "EMPLOYEES" && "Employees"}
                                     {view === "ASSIGNMENTS" && "Assignments"}
                                     {view === "REPORTS" && "Reports"}
+                                    {view === "PAYROLL" && "Payroll Management"}
                                 </h5>
                             </div>
                             <div className="card-body">
-                                {tableRows.length === 0 ? (
-                                    <div className="text-muted">Nu există înregistrări.</div>
-                                ) : (
-                                    <div className="table-responsive">
-                                        <table className="table table-hover">
-                                            <thead>
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Col 1</th>
-                                                <th>Col 2</th>
-                                                <th>Col 3</th>
-                                                <th>Col 4</th>
-                                                <th>Acțiuni</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            {tableRows.map((row) => (
-                                                <tr key={row.id}>
-                                                    <td>{row.id}</td>
-                                                    <td>{row.col1}</td>
-                                                    <td>{row.col2}</td>
-                                                    <td>{row.col3}</td>
-                                                    <td>{row.col4}</td>
-                                                    <td>{row.actions ?? <span className="text-muted">—</span>}</td>
+                                {/* Tabel pentru Task-uri (TASKS_UNASSIGNED și MY_TASKS) */}
+                                {(view === "TASKS_UNASSIGNED" || view === "MY_TASKS") && (
+                                    tableRows.length === 0 ? (
+                                        <div className="text-muted">Nu există task-uri.</div>
+                                    ) : (
+                                        <div className="table-responsive">
+                                            <table className="table table-hover">
+                                                <thead>
+                                                <tr>
+                                                    <th style={{width: '50px'}}></th>
+                                                    <th>ID</th>
+                                                    <th>Title</th>
+                                                    <th>Type</th>
+                                                    <th>Difficulty</th>
+                                                    <th>Required Skills</th>
+                                                    <th>Planned Duration</th>
+                                                    <th>Predicted Duration</th>
+                                                    <th>Deadline</th>
+                                                    <th>Priority</th>
+                                                    <th>Revenue</th>
+                                                    <th>Other Costs</th>
+                                                    <th>Status</th>
                                                 </tr>
-                                            ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody>
+                                                {tableRows.map((row) => (
+                                                    <React.Fragment key={row.id}>
+                                                        <tr>
+                                                            <td>
+                                                                <button
+                                                                    className="btn btn-sm btn-outline-secondary py-0 px-1"
+                                                                    onClick={() => toggleRow(row.id)}
+                                                                    title={expandedRows.has(row.id) ? "Hide details" : "Show details"}
+                                                                >
+                                                                    {expandedRows.has(row.id) ? '▲' : '▼'}
+                                                                </button>
+                                                            </td>
+                                                            <td>{row.id}</td>
+                                                            <td>{row.Title}</td>
+                                                            <td>{row.Type}</td>
+                                                            <td>{row.Difficulty}/5</td>
+                                                            <td>
+                                                                <div className="d-flex align-items-center">
+                                                                <span className="d-inline-block text-truncate me-2" style={{maxWidth: '120px'}}>
+                                                                    {row.RequiredSkills}
+                                                                </span>
+                                                                </div>
+                                                            </td>
+                                                            <td>{row.PlannedDuration}min</td>
+                                                            <td>{row.PredictedDuration}min</td>
+                                                            <td>{row.Deadline}</td>
+                                                            <td>{row.Priority}/5</td>
+                                                            <td>${row.Revenue}</td>
+                                                            <td>${row.OtherCosts}</td>
+                                                            <td>
+                                                            <span className={`badge ${
+                                                                row.Status === 'DONE' ? 'bg-success' :
+                                                                    row.Status === 'IN_PROGRESS' ? 'bg-primary' :
+                                                                        row.Status === 'ASSIGNED' ? 'bg-warning' :
+                                                                            'bg-secondary'
+                                                            }`}>
+                                                                {row.Status}
+                                                            </span>
+                                                            </td>
+                                                        </tr>
+                                                        {expandedRows.has(row.id) && (
+                                                            <tr className="bg-light">
+                                                                <td colSpan={13}>
+                                                                    <div className="p-3">
+                                                                        <div className="d-flex align-items-center mb-2">
+                                                                            <span className="me-2 fw-bold">{row.Title}</span>
+                                                                            <button
+                                                                                className="btn btn-sm btn-outline-primary py-0 px-1"
+                                                                                onClick={() => open("EDIT_TASK", {
+                                                                                    taskId: row.id,
+                                                                                    title: row.Title,
+                                                                                    type: row.Type,
+                                                                                    difficulty: row.Difficulty,
+                                                                                    requiredSkills: row.RequiredSkills,
+                                                                                    plannedDuration: row.PlannedDuration,
+                                                                                    predictedDuration: row.PredictedDuration,
+                                                                                    deadline: row.Deadline,
+                                                                                    priority: row.Priority,
+                                                                                    revenue: row.Revenue,
+                                                                                    otherCosts: row.OtherCosts,
+                                                                                    status: row.Status
+                                                                                })}
+                                                                                title="Edit task"
+                                                                            >
+                                                                                ✏️
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="row">
+                                                                            <div className="col-md-6">
+                                                                                <strong>Required Skills:</strong>
+                                                                                <div className="mt-1">
+                                                                                    {(() => {
+                                                                                        try {
+                                                                                            const skills = JSON.parse(row.RequiredSkills);
+                                                                                            if (Array.isArray(skills)) {
+                                                                                                return skills.map((skill, index) => (
+                                                                                                    <span key={index} className="badge bg-primary me-1 mb-1">
+                                                                                                    {skill}
+                                                                                                </span>
+                                                                                                ));
+                                                                                            }
+                                                                                        } catch (e) {
+                                                                                            // Dacă nu e JSON valid, afișează ca text simplu
+                                                                                        }
+                                                                                        return (
+                                                                                            <span className="text-muted">{row.RequiredSkills}</span>
+                                                                                        );
+                                                                                    })()}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="col-md-6">
+                                                                                <strong>Additional Info:</strong>
+                                                                                <div className="mt-1">
+                                                                                    <div><small><strong>Type:</strong> {row.Type}</small></div>
+                                                                                    <div><small><strong>Difficulty:</strong> {row.Difficulty}/5</small></div>
+                                                                                    <div><small><strong>Planned Duration:</strong> {row.PlannedDuration} minutes</small></div>
+                                                                                    <div><small><strong>Predicted Duration:</strong> {row.PredictedDuration} minutes</small></div>
+                                                                                    <div><small><strong>Revenue:</strong> ${row.Revenue}</small></div>
+                                                                                    <div><small><strong>Other Costs:</strong> ${row.OtherCosts}</small></div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        {view === "TASKS_UNASSIGNED" && (
+                                                                            <div className="mt-3">
+                                                                                <button
+                                                                                    className="btn btn-sm btn-outline-primary"
+                                                                                    onClick={() => open("ASSIGN_TO_ME", { taskId: row.id })}
+                                                                                >
+                                                                                    Assign to me
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
+                                                ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )
+                                )}
+
+                                {/* Tabel pentru Employees */}
+                                {view === "EMPLOYEES" && (
+                                    tableRows1.length === 0 ? (
+                                        <div className="text-muted">Nu există angajați.</div>
+                                    ) : (
+                                        <div className="table-responsive">
+                                            <table className="table table-hover">
+                                                <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th>Username</th>
+                                                    <th>Email</th>
+                                                    <th>Status</th>
+                                                    <th>Role</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody>
+                                                {tableRows1.map((row) => (
+                                                    <tr key={row.id}>
+                                                        <td>{row.id}</td>
+                                                        <td>{row.Username}</td>
+                                                        <td>{row.Email}</td>
+                                                        <td>{row.Status}</td>
+                                                        <td>{row.Role}</td>
+                                                        <td>{row.actions ?? <span className="text-muted">—</span>}</td>
+                                                    </tr>
+                                                ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )
+                                )}
+
+                                {/* Tabel pentru Reports */}
+                                {view === "REPORTS" && (
+                                    <div className="reports-section">
+                                        {/* Butoane pentru switching între view și generate */}
+                                        <div className="button-group mb-4">
+                                            <button
+                                                className={`btn ${viewMode === 'view' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                                onClick={() => {
+                                                    setViewMode('view');
+                                                    fetchAllReports();
+                                                }}
+                                            >
+                                                📊 View All Reports
+                                            </button>
+                                            <button
+                                                className={`btn ${viewMode === 'generate' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                                onClick={() => {
+                                                    setViewMode('generate');
+                                                    open("GENERATE_REPORT");
+                                                }}
+                                            >
+                                                ➕ Generate New Report
+                                            </button>
+                                        </div>
+
+                                        {viewMode === 'view' ? (
+                                            /* MODUL DE VIZUALIZARE - TOATE RAPOARTELE */
+                                            <div>
+                                                <h5>All Generated Reports</h5>
+                                                {loading ? (
+                                                    <div className="text-center py-4">
+                                                        <div className="spinner-border" role="status">
+                                                            <span className="visually-hidden">Loading...</span>
+                                                        </div>
+                                                        <p className="mt-2">Loading reports...</p>
+                                                    </div>
+                                                ) : allReports.length === 0 ? (
+                                                    <div className="text-center py-4">
+                                                        <p className="text-muted">No reports available. Generate your first report!</p>
+                                                        <button
+                                                            className="btn btn-primary mt-2"
+                                                            onClick={() => {
+                                                                setViewMode('generate');
+                                                                open("GENERATE_REPORT");
+                                                            }}
+                                                        >
+                                                            Generate First Report
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="table-responsive">
+                                                        <table className="table table-hover">
+                                                            <thead>
+                                                            <tr>
+                                                                <th>Employee ID</th>
+                                                                <th>Period</th>
+                                                                <th>Total Tasks</th>
+                                                                <th>Average Grade</th>
+                                                                <th>Total Revenue</th>
+                                                                <th>Total Costs</th>
+                                                                <th>Productivity Score</th>
+                                                                <th>Generated At</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {allReports.map((report) => (
+                                                                <tr key={report.id}>
+                                                                    <td>{report.employeeId || 'N/A'}</td>
+                                                                    <td>{report.year}-{String(report.month).padStart(2, "0")}</td>
+                                                                    <td>{report.totalTasks || 0}</td>
+                                                                    <td>{report.avgGrade?.toFixed(2) || "0.00"}</td>
+                                                                    <td>${report.totalRevenue?.toFixed(2) || "0.00"}</td>
+                                                                    <td>${report.totalCosts?.toFixed(2) || "0.00"}</td>
+                                                                    <td>
+                                                                    <span className={`badge ${
+                                                                        (report.productivityScore ?? 0) > 0 ? 'bg-success' :
+                                                                            (report.productivityScore ?? 0) < 0 ? 'bg-danger' : 'bg-secondary'
+                                                                    }`}>
+                                                                        {report.productivityScore?.toFixed(2) || "0.00"}
+                                                                    </span>
+                                                                    </td>
+                                                                    <td>
+                                                                        {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : 'N/A'}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            /* MODUL DE GENERARE - FORMULAR PENTRU RAPORT NOU */
+                                            <div>
+                                                <h5>Generate New Monthly Report</h5>
+                                                {report ? (
+                                                    <div className="alert alert-success">
+                                                        <h6>Last Generated Report</h6>
+                                                        <div className="row">
+                                                            <div className="col-md-3"><strong>Employee:</strong> {report.employeeId}</div>
+                                                            <div className="col-md-3"><strong>Period:</strong> {report.year}-{String(report.month).padStart(2, "0")}</div>
+                                                            <div className="col-md-3"><strong>Tasks:</strong> {report.totalTasks}</div>
+                                                            <div className="col-md-3"><strong>Productivity:</strong> {report.productivityScore?.toFixed(2)}</div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="alert alert-info">
+                                                        Complete the form below to generate a new monthly report.
+                                                    </div>
+                                                )}
+                                                <button
+                                                    className="btn btn-primary"
+                                                    onClick={() => open("GENERATE_REPORT")}
+                                                >
+                                                    Open Generate Report Form
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Tabel pentru Payroll */}
+                                {view === "PAYROLL" && (
+                                    <div className="payroll-section">
+                                        <div className="d-flex justify-content-between align-items-center mb-4">
+                                            <h5>Payroll Management</h5>
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={() => open("CALCULATE_PAYROLL")}
+                                            >
+                                                Calculate Payroll
+                                            </button>
+                                        </div>
+
+                                        {currentPayroll && (
+                                            <div className="alert alert-success mb-3">
+                                                <h6>Last Calculated Payroll</h6>
+                                                <div className="row">
+                                                    <div className="col-md-3"><strong>Employee:</strong> {currentPayroll.employee?.name || currentPayroll.employeeId}</div>
+                                                    <div className="col-md-3"><strong>Period:</strong> {currentPayroll.month}</div>
+                                                    <div className="col-md-2"><strong>Base Salary:</strong> ${currentPayroll.baseSalary?.toFixed(2)}</div>
+                                                    <div className="col-md-2"><strong>Bonuses:</strong> ${currentPayroll.bonuses?.toFixed(2)}</div>
+                                                    <div className="col-md-2"><strong>Net Salary:</strong> <strong>${currentPayroll.netSalary?.toFixed(2)}</strong></div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="card">
+                                            <div className="card-header">
+                                                <h6 className="mb-0">Payroll History</h6>
+                                            </div>
+                                            <div className="card-body">
+                                                {payrollHistory.length === 0 ? (
+                                                    <div className="text-center py-4">
+                                                        <p className="text-muted">No payroll records found.</p>
+                                                        <button
+                                                            className="btn btn-primary"
+                                                            onClick={() => open("CALCULATE_PAYROLL")}
+                                                        >
+                                                            Calculate First Payroll
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="table-responsive">
+                                                        <table className="table table-hover">
+                                                            <thead>
+                                                            <tr>
+                                                                <th>Employee</th>
+                                                                <th>Period</th>
+                                                                <th>Base Salary</th>
+                                                                <th>Bonuses</th>
+                                                                <th>Deductions</th>
+                                                                <th>Net Salary</th>
+                                                                <th>Admin</th>
+                                                                <th>Calculated At</th>
+                                                            </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                            {payrollHistory.map((payroll) => (
+                                                                <tr key={payroll.id}>
+                                                                    <td>
+                                                                        {payroll.employee?.name || `Employee #${payroll.employeeId}`}
+                                                                    </td>
+                                                                    <td>{payroll.month?.toString() || 'N/A'}</td>
+                                                                    <td>${payroll.baseSalary?.toFixed(2) || "0.00"}</td>
+                                                                    <td>${payroll.bonuses?.toFixed(2) || "0.00"}</td>
+                                                                    <td>${payroll.deductions?.toFixed(2) || "0.00"}</td>
+                                                                    <td>
+                                                                        <strong>${payroll.netSalary?.toFixed(2) || "0.00"}</strong>
+                                                                    </td>
+                                                                    <td>
+                                                                        {payroll.admin?.name || `Admin #${payroll.adminId}`}
+                                                                    </td>
+                                                                    <td>
+                                                                        {new Date().toLocaleDateString()}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -966,8 +1663,8 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
+
             {/* === Modals === */}
-            {/* ADD EMPLOYEE */}
             {/* ADD EMPLOYEE */}
             <Modal
                 open={modal === "ADD_EMP"}
@@ -1262,40 +1959,47 @@ export default function AdminDashboard() {
             </Modal>
 
             {/* GENERATE REPORT */}
-            <Modal
-                open={modal === "GENERATE_REPORT"}
-                title="Generează raport lunar"
-                onClose={close}
-                onSubmit={submitGenerateReport}
-                submitLabel="Generează"
-            >
-                <div className="row g-2">
-                    <div className="col-md-4">
-                        <input
-                            className="form-control"
-                            placeholder="Employee ID"
-                            value={form.employeeId || ""}
-                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
-                        />
-                    </div>
-                    <div className="col-md-4">
-                        <input
-                            className="form-control"
-                            placeholder="An"
-                            value={form.year || ""}
-                            onChange={(e) => setForm({ ...form, year: e.target.value })}
-                        />
-                    </div>
-                    <div className="col-md-4">
-                        <input
-                            className="form-control"
-                            placeholder="Lună (1-12)"
-                            value={form.month || ""}
-                            onChange={(e) => setForm({ ...form, month: e.target.value })}
-                        />
-                    </div>
-                </div>
-            </Modal>
+         {/* GENERATE REPORT */}
+         <Modal
+             open={modal === "GENERATE_REPORT"}
+             title="Generează raport lunar"
+             onClose={close}
+             onSubmit={submitGenerateReport}
+             submitLabel="Generează"
+         >
+             <div className="row g-2">
+                 <div className="col-md-4">
+                     <input
+                         className="form-control"
+                         placeholder="Employee ID*"
+                         value={form.employeeId || ""}
+                         onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                         required
+                     />
+                 </div>
+                 <div className="col-md-4">
+                     <input
+                         className="form-control"
+                         placeholder="An (ex: 2024)*"
+                         value={form.year || ""}
+                         onChange={(e) => setForm({ ...form, year: e.target.value })}
+                         required
+                     />
+                 </div>
+                 <div className="col-md-4">
+                     <input
+                         className="form-control"
+                         placeholder="Lună (1-12)*"
+                         value={form.month || ""}
+                         onChange={(e) => setForm({ ...form, month: e.target.value })}
+                         required
+                     />
+                 </div>
+             </div>
+             <small className="text-muted mt-2">
+                 * Toate câmpurile sunt obligatorii. Raportul va fi generat pentru angajatul specificat și perioada selectată.
+             </small>
+         </Modal>
 
             {/* IMPORT XML */}
             <Modal
@@ -1318,6 +2022,233 @@ export default function AdminDashboard() {
                         Fișier selectat: {form.file.name}
                     </p>
                 )}
+            </Modal>
+            {/* EDIT TASK */}
+            <Modal
+                open={modal === "EDIT_TASK"}
+                title="Editează Task"
+                onClose={close}
+                onSubmit={submitEditTask}
+                submitLabel="Salvează"
+            >
+                <div className="row g-2">
+                    <div className="col-md-6">
+                        <label className="form-label">Task ID*</label>
+                        <input
+                            className="form-control"
+                            placeholder="Task ID"
+                            value={form.taskId || ""}
+                            onChange={(e) => setForm({ ...form, taskId: e.target.value })}
+                            required
+                            disabled
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Titlu</label>
+                        <input
+                            className="form-control"
+                            placeholder="Titlu task"
+                            value={form.title || ""}
+                            onChange={(e) => setForm({ ...form, title: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Tip</label>
+                        <select
+                            className="form-select"
+                            value={form.type || ""}
+                            onChange={(e) => setForm({ ...form, type: e.target.value })}
+                        >
+                            <option value="">Selectează tipul</option>
+                            <option value="REPORT">REPORT</option>
+                            <option value="DEVELOPMENT">DEVELOPMENT</option>
+                            <option value="TESTING">TESTING</option>
+                            <option value="DATABASE">DATABASE</option>
+                            <option value="DOCUMENTATION">DOCUMENTATION</option>
+                            <option value="ANALYSIS">ANALYSIS</option>
+                        </select>
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Dificultate (1-5)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            min="1"
+                            max="5"
+                            placeholder="Dificultate"
+                            value={form.difficulty || ""}
+                            onChange={(e) => setForm({ ...form, difficulty: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-12">
+                        <label className="form-label">Skills necesare</label>
+                        <input
+                            className="form-control"
+                            placeholder="Skills (separate prin virgulă)"
+                            value={form.requiredSkills || ""}
+                            onChange={(e) => setForm({ ...form, requiredSkills: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Durată planificată (min)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            placeholder="Durată planificată"
+                            value={form.plannedDuration || ""}
+                            onChange={(e) => setForm({ ...form, plannedDuration: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Durată estimată (min)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            placeholder="Durată estimată"
+                            value={form.predictedDuration || ""}
+                            onChange={(e) => setForm({ ...form, predictedDuration: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Deadline</label>
+                        <input
+                            className="form-control"
+                            type="date"
+                            placeholder="Deadline"
+                            value={form.deadline || ""}
+                            onChange={(e) => setForm({ ...form, deadline: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Prioritate (1-5)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            min="1"
+                            max="5"
+                            placeholder="Prioritate"
+                            value={form.priority || ""}
+                            onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Venit ($)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            step="0.01"
+                            placeholder="Venit"
+                            value={form.revenue || ""}
+                            onChange={(e) => setForm({ ...form, revenue: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Alte costuri ($)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            step="0.01"
+                            placeholder="Alte costuri"
+                            value={form.otherCosts || ""}
+                            onChange={(e) => setForm({ ...form, otherCosts: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-12">
+                        <label className="form-label">Status</label>
+                        <select
+                            className="form-select"
+                            value={form.status || ""}
+                            onChange={(e) => setForm({ ...form, status: e.target.value })}
+                        >
+                            <option value="">Selectează statusul</option>
+                            <option value="NEW">NEW</option>
+                            <option value="ASSIGNED">ASSIGNED</option>
+                            <option value="IN_PROGRESS">IN_PROGRESS</option>
+                            <option value="DONE">DONE</option>
+                        </select>
+                    </div>
+                </div>
+                <small className="text-muted mt-2">* Completează doar câmpurile pe care vrei să le modifici</small>
+            </Modal>
+            <Modal
+                open={modal === "CALCULATE_PAYROLL"}
+                title="Calculate Employee Payroll"
+                onClose={close}
+                onSubmit={submitCalculatePayroll}
+                submitLabel="Calculate"
+            >
+                <div className="row g-2">
+                    <div className="col-md-6">
+                        <label className="form-label">Employee ID*</label>
+                        <input
+                            className="form-control"
+                            placeholder="Employee ID"
+                            value={form.employeeId || ""}
+                            onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-3">
+                        <label className="form-label">Month*</label>
+                        <select
+                            className="form-select"
+                            value={form.month || ""}
+                            onChange={(e) => setForm({ ...form, month: e.target.value })}
+                            required
+                        >
+                            <option value="">Select Month</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div className="col-md-3">
+                        <label className="form-label">Year*</label>
+                        <input
+                            className="form-control"
+                            placeholder="Year"
+                            value={form.year || ""}
+                            onChange={(e) => setForm({ ...form, year: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Bonuses ($)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Bonuses"
+                            value={form.bonuses || ""}
+                            onChange={(e) => setForm({ ...form, bonuses: e.target.value })}
+                        />
+                    </div>
+                    <div className="col-md-6">
+                        <label className="form-label">Deductions ($)</label>
+                        <input
+                            className="form-control"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Deductions"
+                            value={form.deductions || ""}
+                            onChange={(e) => setForm({ ...form, deductions: e.target.value })}
+                        />
+                    </div>
+                </div>
+                <small className="text-muted mt-2">
+                    * Câmpurile obligatorii. Salariul de bază va fi calculat automat pe baza ratei orare și orelor lucrate.
+                </small>
             </Modal>
         </div>
     );

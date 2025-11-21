@@ -18,4 +18,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     @Query("SELECT DISTINCT e FROM Employee e JOIN e.skills es JOIN es.skill s WHERE s.name IN :skillNames")
     List<Employee> findBySkillNames(@Param("skillNames") List<String> skillNames);
+
+    //boolean existsByUserId(Long id);
 }

@@ -8,14 +8,13 @@ import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
 import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
 import com.example.app.managementapi.ManagementApiApplication.entity.MonthlyReport;
 import com.example.app.managementapi.ManagementApiApplication.entity.Task;
-import com.example.app.managementapi.ManagementApiApplication.repository.AdminRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.UserRepository;
+import com.example.app.managementapi.ManagementApiApplication.repository.*;
 import com.example.app.managementapi.ManagementApiApplication.service.EmployeeService;
 import com.example.app.managementapi.ManagementApiApplication.service.MonthlyReportService;
 import com.example.app.managementapi.ManagementApiApplication.service.ServiceForAdmin;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -37,12 +36,37 @@ public class    ControllerForAdmin {
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
     private final MonthlyReportService reportService;
+    private final MonthlyReportRepository monthlyReportRepository;
 
-    @PostMapping("/reports/generate")
-    public MonthlyReport generateReport(@RequestParam Long employeeId,
-                                        @RequestParam int year,
-                                        @RequestParam int month) {
-        return reportService.generateMonthlyReport(employeeId, YearMonth.of(year, month));
+    @PostMapping("/generate")
+    public ResponseEntity<MonthlyReport> generateReport(
+            @RequestParam Long employeeId,
+            @RequestParam int year,
+            @RequestParam int month) {
+
+        // ✅ Validează input-ul
+        if (month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        try {
+            MonthlyReport report = reportService.generateMonthlyReport(employeeId, year, month);
+            return ResponseEntity.ok(report);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+
+    // ✅ Endpoint NOU pentru a obține toate rapoartele
+    @GetMapping("/reports/all")
+    public ResponseEntity<List<MonthlyReport>> getAllReports() {
+        try {
+            List<MonthlyReport> reports = monthlyReportRepository.findAll();
+            return ResponseEntity.ok(reports);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @GetMapping("/employee")
@@ -150,7 +174,7 @@ public class    ControllerForAdmin {
                 .stream().map(TaskMapper::toDto).toList();
     }
 
-    // ===== TASK MGMT =====
+    /*// ===== TASK MGMT =====
     @PutMapping("/tasks/{id}/preset-duration")
     public Task setPresetDuration(@PathVariable Long id, @RequestParam int minutes) {
         return assignmentService.setPresetDuration(id, minutes);
@@ -167,6 +191,19 @@ public class    ControllerForAdmin {
                              @RequestParam(required = false) Integer grade,
                              @RequestParam(required = false) Double profit) {
         return assignmentService.finalizeTask(id, actualMinutes, grade, profit);
+    }*/
+
+    @PutMapping("/tasks/{taskId}")
+    public ResponseEntity<Task> updateTask(
+            @PathVariable Long taskId,
+            @RequestBody TaskDto updateRequest) {
+
+        try {
+            Task updatedTask = assignmentService.updateTask(taskId, updateRequest);
+            return ResponseEntity.ok(updatedTask);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
     @PostMapping(value = "/employee/import-xml", consumes = {"multipart/form-data"})

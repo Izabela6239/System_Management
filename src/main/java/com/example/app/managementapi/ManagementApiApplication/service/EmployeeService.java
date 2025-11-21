@@ -177,7 +177,7 @@ public class EmployeeService {
      * Calculează salariul pe baza assignment-urilor **finalizate** în luna dată.
      * Durata o luăm din `task.planned_duration_min` dacă nu ai durată reală.
      */
-    public double computeSalary(Long employeeId, YearMonth ym) {
+   /* public double computeSalary(Long employeeId, YearMonth ym) {
         double hourlyRate = 50.0; // exemplu
         var finished = assignmentRepository
                 .findByEmployeeIdAndFinishedAtYearMonth(employeeId, ym.getMonthValue());
@@ -192,7 +192,7 @@ public class EmployeeService {
         }
         double hours = totalMinutes / 60.0;
         return hours * hourlyRate;
-    }
+    }*/
 
     /* ===================== XML IMPORT ===================== */
 
