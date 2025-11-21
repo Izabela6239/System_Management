@@ -77,6 +77,9 @@ public class Employee {
     @JsonIgnore
     private List<Notification> notifications;
 
+    @Column(name = "base_salary")
+    private Double baseSalary;
+
    /* @OneToMany(mappedBy = "employee")
     @JsonIgnore
     private List<MonthlyReport> reports;*/

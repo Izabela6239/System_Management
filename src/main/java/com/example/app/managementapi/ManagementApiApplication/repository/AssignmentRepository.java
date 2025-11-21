@@ -89,5 +89,4 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
             @Param("year") int year
     );
 
-
 }
