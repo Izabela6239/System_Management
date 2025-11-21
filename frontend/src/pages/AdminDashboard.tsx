@@ -1576,7 +1576,6 @@ export default function AdminDashboard() {
                                 {view === "PAYROLL" && (
                                     <div className="payroll-section">
                                         <div className="d-flex justify-content-between align-items-center mb-4">
-                                            <h5>Payroll Management</h5>
                                             <button
                                                 className="btn btn-primary"
                                                 onClick={() => open("CALCULATE_PAYROLL")}
