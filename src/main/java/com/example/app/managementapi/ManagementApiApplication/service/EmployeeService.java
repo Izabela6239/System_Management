@@ -2,7 +2,11 @@ package com.example.app.managementapi.ManagementApiApplication.service;
 
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
 import com.example.app.managementapi.ManagementApiApplication.dto.LeaveRequestDTO;
-import com.example.app.managementapi.ManagementApiApplication.entity.*;
+import com.example.app.managementapi.ManagementApiApplication.entity.Admin;
+import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
+import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
+import com.example.app.managementapi.ManagementApiApplication.entity.LeaveRequest;
+import com.example.app.managementapi.ManagementApiApplication.entity.Task;
 import com.example.app.managementapi.ManagementApiApplication.enums.LeaveStatus;
 import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
 import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
@@ -12,20 +16,16 @@ import com.example.app.managementapi.ManagementApiApplication.repository.Employe
 import com.example.app.managementapi.ManagementApiApplication.repository.LeaveRequestRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
 import com.example.app.managementapi.ManagementApiApplication.repository.UserRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.PayrollRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.multipart.MultipartFile;
 import org.w3c.dom.*;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +42,6 @@ public class EmployeeService {
     private final AdminRepository adminRepository;
     private final AssignmentRepository assignmentRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PayrollRepository payrollRepository;
 
     /* ===================== LEAVE REQUESTS ===================== */
 
@@ -265,43 +264,5 @@ public class EmployeeService {
 
     private static String trim(String s) {
         return s == null ? null : s.trim();
-    }
-
-    public Payroll calculatePayroll(Long employeeId, int month, int year,
-                                    Double bonuses, Double deductions, Long adminId) {
-
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Employee not found"));
-
-        Admin admin = adminRepository.findById(adminId)
-                .orElseThrow(() -> new RuntimeException("Admin not found"));
-
-        int totalMinutes = assignmentRepository.sumMinutesForEmployeeAndPeriod(employeeId, month, year);
-        double hoursWorked = totalMinutes / 60.0;
-
-        double hourlyRate = employee.getHourlyRate() != null ? employee.getHourlyRate() : 20;
-        double baseSalary = hourlyRate * hoursWorked;
-
-        double b = bonuses != null ? bonuses : 0;
-        double d = deductions != null ? deductions : 0;
-        double netSalary = baseSalary + b - d;
-
-        Payroll payroll = new Payroll();
-        payroll.setEmployee(employee);
-        payroll.setAdmin(admin);
-        payroll.setMonth(month);
-        payroll.setYear(year);
-        payroll.setBaseSalary(baseSalary);
-        payroll.setBonuses(b);
-        payroll.setDeductions(d);
-        payroll.setNetSalary(netSalary);
-        payroll.setCreatedAt(LocalDateTime.now());
-
-        return payrollRepository.save(payroll);
-    }
-
-
-    public List<Payroll> getPayrollHistory() {
-        return payrollRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 }

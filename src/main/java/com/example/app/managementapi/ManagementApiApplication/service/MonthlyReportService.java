@@ -1,6 +1,5 @@
 package com.example.app.managementapi.ManagementApiApplication.service;
 
-import com.example.app.managementapi.ManagementApiApplication.ai.scoring.ScoringService;
 import com.example.app.managementapi.ManagementApiApplication.auth.User;
 import com.example.app.managementapi.ManagementApiApplication.entity.Assignment;
 import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
@@ -25,68 +24,56 @@ public class MonthlyReportService {
     private final UserRepository userRepository;
     private final AssignmentRepository assignmentRepository;
     private final MonthlyReportRepository reportRepository;
-    private final ScoringService scoringService;
 
 
     @Transactional
     public MonthlyReport generateMonthlyReport(Long employeeId, int year, int month) {
+        try {
+            // ✅ Caută user-ul cu rol de employee folosind UserRepository
+            User employee = userRepository.findByIdAndRole(employeeId, UserRole.EMPLOYEE)
+                    .orElseThrow(() -> new RuntimeException("Employee not found or user is not an employee"));
 
-        // 1. Găsește employee
-        User employee = userRepository.findByIdAndRole(employeeId, UserRole.EMPLOYEE)
-                .orElseThrow(() -> new RuntimeException("Employee not found or user is not an employee"));
+            List<Assignment> completedAssignments = assignmentRepository
+                    .findByEmployeeIdAndFinishedAtYearMonth(employeeId, month, year);
 
-        // 2. Găsește assignment-urile finalizate în luna dată
-        List<Assignment> assignments = assignmentRepository.findAssignmentsForMonthlyReport(
-                employeeId, month, year
-        );
+            System.out.println("Found " + completedAssignments.size() + " completed assignments for employee " + employeeId + " in " + month + "/" + year);
 
-        int totalTasks = assignments.size();
+            int totalTasks = completedAssignments.size();
+            double avgGrade = completedAssignments.stream()
+                    .filter(a -> a.getAdminGrade() != null)
+                    .mapToInt(Assignment::getAdminGrade)
+                    .average()
+                    .orElse(0.0);
 
-        double avgGrade = assignments.stream()
-                .filter(a -> a.getAdminGrade() != null)
-                .mapToInt(Assignment::getAdminGrade)
-                .average()
-                .orElse(0.0);
+            double totalRevenue = completedAssignments.stream()
+                    .mapToDouble(a -> a.getTask().getRevenue().doubleValue())
+                    .sum();
 
-        double totalRevenue = assignments.stream()
-                .mapToDouble(a -> a.getTask().getRevenue() != null ?
-                        a.getTask().getRevenue().doubleValue() : 0)
-                .sum();
+            // ✅ Folosește hourlyRate din User (asigură-te că User entity are acest câmp)
+            double totalCosts = completedAssignments.stream().mapToDouble(a ->
+                    (a.getActualDurationMin() / 60.0) * 20 +
+                            a.getTask().getOtherCosts().doubleValue()
+            ).sum();
 
-        // 3. Folosește hourlyRate real
-        double hourlyRate = employee.getHourlyRate() != null ? employee.getHourlyRate() : 20;
+            double productivityScore = totalTasks == 0 ? 0 : (totalRevenue - totalCosts) / totalTasks;
 
-        double totalCosts = assignments.stream().mapToDouble(a ->
-                (a.getActualDurationMin() / 60.0) * hourlyRate +
-                        (a.getTask().getOtherCosts() != null ?
-                                a.getTask().getOtherCosts().doubleValue() : 0)
-        ).sum();
+            MonthlyReport report = new MonthlyReport();
+            report.setEmployee(employee);  // ✅ Setează User (care este employee)
+            report.setYear(year);
+            report.setMonth(month);
+            report.setTotalTasks(totalTasks);
+            report.setAvgGrade(avgGrade);
+            report.setTotalRevenue(totalRevenue);
+            report.setTotalCosts(totalCosts);
+            report.setProductivityScore(productivityScore);
 
-        // 4. Productivity calculată corect
-        double productivityScore = assignments.stream()
-                .mapToDouble(a -> scoringService.productivityScore(
-                        a.getTask().getPlannedDurationMin(),
-                        a.getTask().getPredictedDurationMin(),
-                        a.getActualDurationMin(),
-                        a.getAdminGrade(),
-                        a.getTask().getDifficulty()
-                ))
-                .average()
-                .orElse(0.0);
+            return reportRepository.save(report);
 
-        // 5. Construiește raportul
-        MonthlyReport report = new MonthlyReport();
-        report.setEmployee(employee);
-        report.setYear(year);
-        report.setMonth(month);
-        report.setTotalTasks(totalTasks);
-        report.setAvgGrade(avgGrade);
-        report.setTotalRevenue(totalRevenue);
-        report.setTotalCosts(totalCosts);
-        report.setProductivityScore(productivityScore);
-
-        return reportRepository.save(report);
+        } catch (Exception e) {
+            System.err.println("Error generating monthly report: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Failed to generate monthly report: " + e.getMessage());
+        }
     }
-
 
 }

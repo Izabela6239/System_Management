@@ -184,5 +184,3 @@ public class Task {
         this.predictedDurationMin = predictedDuration;
     }
 }
-
-

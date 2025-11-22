@@ -137,7 +137,7 @@ public class AssignmentService {
         Integer base = (t.getPredictedDurationMin() != null && t.getPredictedDurationMin() > 0)
                 ? t.getPredictedDurationMin() : t.getPlannedDurationMin();
         pt.setDurationMin(nvl(base, 60));
-       // pt.setDeadline(t.getDeadline());           // poate fi null
+        // pt.setDeadline(t.getDeadline());           // poate fi null
         pt.setPriority(nvl(t.getPriority(), 3));
         return pt;
     }
