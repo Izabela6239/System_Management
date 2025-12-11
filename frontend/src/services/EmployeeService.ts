@@ -1,10 +1,6 @@
 // frontend/src/services/EmployeeService.ts
 import axios from "../utils/axios";
 
-/* ============================================================
-   ===============      TYPES (ca la Admin)     =============== 
-   ============================================================ */
-
 export type TaskStatus =
     | "NEW"
     | "PENDING"
@@ -41,30 +37,27 @@ export interface LeaveRequest {
 
 const base = "/employee";
 
-
-// GET /employee/tasks
 export const getTasks = async (): Promise<EmployeeTask[]> => {
     const { data } = await axios.get(`${base}/tasks`);
     return Array.isArray(data) ? data : [];
 };
 
-// GET /employee/tasks/in-progress
 export const getTasksInProgress = async (): Promise<EmployeeTask[]> => {
     const { data } = await axios.get(`${base}/tasks/in-progress`);
     return Array.isArray(data) ? data : [];
 };
 
-// GET /employee/tasks/completed
 export const getCompletedTasks = async (): Promise<EmployeeTask[]> => {
     const { data } = await axios.get(`${base}/tasks/completed`);
     return Array.isArray(data) ? data : [];
 };
 
-// PUT /employee/tasks/{taskId}?status=...&plannedDurationMin=...
 export const updateTask = async (
     taskId: number,
     data: { status?: string }
 ) => {
+    console.log("🔄 updateTask called with:", { taskId, data });
+
     const response = await fetch(`http://localhost:8080/employee/tasks/${taskId}`, {
         method: "PUT",
         headers: {
@@ -74,43 +67,40 @@ export const updateTask = async (
         body: JSON.stringify(data),
     });
 
+    console.log("📤 Response status:", response.status);
+
     if (!response.ok) {
-        throw new Error("Failed to update task");
+        const errorText = await response.text();
+        console.error("❌ updateTask failed:", errorText);
+        throw new Error("Failed to update task: " + errorText);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log("✅ updateTask success:", result);
+    return result;
 };
 
 
-/* ============================================================
-   ===============        LEAVE REQUESTS         =============== 
-   ============================================================ */
-
-// GET /employee/leave
 export const getLeaveRequests = async (): Promise<LeaveRequest[]> => {
     const { data } = await axios.get(`${base}/leave`);
     return Array.isArray(data) ? data : [];
 };
 
-// GET /employee/leave/pending
 export const getPendingLeaveRequests = async (): Promise<LeaveRequest[]> => {
     const { data } = await axios.get(`${base}/leave/pending`);
     return Array.isArray(data) ? data : [];
 };
 
-// GET /employee/leave/approved
 export const getApprovedLeaveRequests = async (): Promise<LeaveRequest[]> => {
     const { data } = await axios.get(`${base}/leave/approved`);
     return Array.isArray(data) ? data : [];
 };
 
-// GET /employee/leave/rejected
 export const getRejectedLeaveRequests = async (): Promise<LeaveRequest[]> => {
     const { data } = await axios.get(`${base}/leave/rejected`);
     return Array.isArray(data) ? data : [];
 };
 
-// POST /employee/leave
 export const createLeaveRequest = async (data: {
     fromDate: string;
     toDate: string;
@@ -133,61 +123,56 @@ export const createLeaveRequest = async (data: {
 };
 
 
-/* ───────────────────────────────────────────────
-   1) ACCEPT TASK
-─────────────────────────────────────────────── */
 export const acceptTask = async (taskId: number) => {
-    const response = await axios.post(`/employee/task/accept`, null, {
-        params: { taskId }
-    });
-
-    return response.data;
+    const response = await axios.post(`/employee/task/accept`, null, { params: { taskId } });
+    const updatedTask = response.data; // presupunem că backend returnează task-ul
+    return {
+        task: updatedTask,
+        message: `Task #${updatedTask.id} a fost ACCEPTAT`
+    };
 };
 
-/* ───────────────────────────────────────────────
-   2) REJECT TASK
-─────────────────────────────────────────────── */
 export const rejectTask = async (taskId: number) => {
-    const response = await axios.post(`/employee/task/reject`, null, {
-        params: { taskId }
-    });
-
-    return response.data;
+    const response = await axios.post(`/employee/task/reject`, null, { params: { taskId } });
+    const updatedTask = response.data;
+    return {
+        task: updatedTask,
+        message: `Task #${updatedTask.id} a fost REJECTAT`
+    };
 };
 
-/* ───────────────────────────────────────────────
-   3) CANCEL TASK
-─────────────────────────────────────────────── */
 export const cancelTask = async (taskId: number) => {
-    const response = await axios.post(`/employee/task/cancel`, null, {
-        params: { taskId }
-    });
-
-    return response.data;
+    const response = await axios.post(`/employee/task/cancel`, null, { params: { taskId } });
+    const updatedTask = response.data;
+    return {
+        task: updatedTask,
+        message: `Task #${updatedTask.id} a fost ANULAT`
+    };
 };
 
-/* ───────────────────────────────────────────────
-   4) HIDE TASK
-─────────────────────────────────────────────── */
 export const hideTask = async (taskId: number) => {
-    const response = await axios.post(`/employee/task/hide`, null, {
-        params: { taskId }
-    });
-
-    return response.data;
+    const response = await axios.post(`/employee/task/hide`, null, { params: { taskId } });
+    const updatedTask = response.data;
+    return {
+        task: updatedTask,
+        message: `Task #${updatedTask.id} a fost ASCUNS`
+    };
 };
 
-/* ───────────────────────────────────────────────
-   5) PROPOSE NEW DATE/TIME
-─────────────────────────────────────────────── */
-export const proposeTaskChange = async (
-    taskId: number,
-    newDate: string,
-    newTime: string
-) => {
-    const response = await axios.post(`/employee/task/propose-change`, null, {
-        params: { taskId, newDate, newTime }
-    });
-
-    return response.data;
+export const proposeTaskChange = async (taskId: number, newDate: string) => {
+    try {
+        console.log("📤 Calling proposeTaskChange API...", { taskId, newDate });
+        const response = await axios.post(`/employee/task/propose-change`, null, {
+            params: { taskId, newDate }
+        });
+        const updatedTask = response.data;
+        return {
+            task: updatedTask,
+            message: `Task #${updatedTask.id} are un nou termen propus: ${newDate}`
+        };
+    } catch (error: any) {
+        console.error("❌ API Error in proposeTaskChange:", error);
+        if (error.response) console.error("Error response:", error.response.data);
+        throw error;
+    }
 };

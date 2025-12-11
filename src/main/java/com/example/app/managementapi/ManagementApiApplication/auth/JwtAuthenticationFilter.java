@@ -1,8 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.auth;
 
 
-import com.example.app.managementapi.ManagementApiApplication.auth.JwtUtil;
-import com.example.app.managementapi.ManagementApiApplication.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

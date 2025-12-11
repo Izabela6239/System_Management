@@ -1,9 +1,6 @@
 package com.example.app.managementapi.ManagementApiApplication.auth;
 
-import com.example.app.managementapi.ManagementApiApplication.auth.User;
-import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
-import com.example.app.managementapi.ManagementApiApplication.repository.UserRepository;
-import com.example.app.managementapi.ManagementApiApplication.entity.Employee;
+import com.example.app.managementapi.ManagementApiApplication.employee.Employee;
 import jakarta.persistence.PostPersist;
 
 public class EmployeeListener {

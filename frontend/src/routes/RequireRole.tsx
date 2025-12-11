@@ -19,7 +19,6 @@ export default function RequireRole({
         return <Navigate to="/login" replace state={{ from: location }} />;
     }
     if (storedRole !== role) {
-        // dacă cineva încearcă să intre pe /admin fără rol corect
         return <Navigate to="/dashboard" replace />;
     }
     return children;

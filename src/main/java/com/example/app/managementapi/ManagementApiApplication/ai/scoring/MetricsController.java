@@ -12,7 +12,6 @@ public class MetricsController {
     private final EntityManager em;
     private final ScoringService scoring;
 
-    // 🔹 Constructor explicit pentru injecție
     public MetricsController(EntityManager em, ScoringService scoring) {
         this.em = em;
         this.scoring = scoring;

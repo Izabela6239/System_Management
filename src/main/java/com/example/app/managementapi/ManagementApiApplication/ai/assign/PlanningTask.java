@@ -14,10 +14,10 @@ import java.util.Set;
 public class PlanningTask {
     private Long taskId;
     private Set<String> requiredSkills;
-    private Integer difficulty;    // 1..5
-    private Integer durationMin;   // predicted/planned
+    private Integer difficulty;
+    private Integer durationMin;
     private LocalDateTime deadline;
-    private Integer priority;      // 1..5
+    private Integer priority;
 
     @PlanningVariable(valueRangeProviderRefs = "employeeRange")
     private PlanningEmployee assigned;

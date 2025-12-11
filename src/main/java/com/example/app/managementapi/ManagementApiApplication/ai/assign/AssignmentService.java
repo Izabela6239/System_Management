@@ -1,14 +1,19 @@
 package com.example.app.managementapi.ManagementApiApplication.ai.assign;
 
-import com.example.app.managementapi.ManagementApiApplication.enums.TaskStatus;
+import com.example.app.managementapi.ManagementApiApplication.employee.Employee;
+import com.example.app.managementapi.ManagementApiApplication.employee.EmployeeSkill;
+import com.example.app.managementapi.ManagementApiApplication.employee.Skill;
+import com.example.app.managementapi.ManagementApiApplication.leave_request.LeaveRequest;
+import com.example.app.managementapi.ManagementApiApplication.task.Assignment;
+import com.example.app.managementapi.ManagementApiApplication.task.TaskStatus;
+import com.example.app.managementapi.ManagementApiApplication.task.Task;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import com.example.app.managementapi.ManagementApiApplication.entity.*;
-import com.example.app.managementapi.ManagementApiApplication.repository.AssignmentRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.EmployeeRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.LeaveRequestRepository;
-import com.example.app.managementapi.ManagementApiApplication.repository.TaskRepository;
+import com.example.app.managementapi.ManagementApiApplication.task.AssignmentRepository;
+import com.example.app.managementapi.ManagementApiApplication.employee.EmployeeRepository;
+import com.example.app.managementapi.ManagementApiApplication.leave_request.LeaveRequestRepository;
+import com.example.app.managementapi.ManagementApiApplication.task.TaskRepository;
 
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
@@ -33,7 +38,6 @@ public class AssignmentService {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // ---- constructor explicit pentru DI (fără Lombok) ----
     public AssignmentService(SolverFactory<AssignmentSolution> solverFactory,
                              EmployeeRepository employeeRepo,
                              TaskRepository taskRepo,
@@ -46,7 +50,6 @@ public class AssignmentService {
         this.assignmentRepo = assignmentRepo;
     }
 
-    /** Generează o soluție (fără a o persista). */
     @Transactional(readOnly = true)
     public AssignmentSolution suggest() {
         List<PlanningEmployee> employees = employeeRepo.findActive().stream()
@@ -65,7 +68,6 @@ public class AssignmentService {
         return solver.solve(problem);
     }
 
-    /** Persistă maparea task->employee (creează Assignment + setează Task.ASSIGNED). */
     @Transactional
     public Map<Long, Long> commit(Map<Long, Long> taskToEmployee) {
         Map<Long, Long> result = new LinkedHashMap<>();
@@ -92,7 +94,6 @@ public class AssignmentService {
         return result;
     }
 
-    /** (Opțional) Face suggest + commit și întoarce un rezumat. */
     @Transactional
     public Map<String, Object> autoAssign() {
         AssignmentSolution sol = suggest();
@@ -114,9 +115,6 @@ public class AssignmentService {
         );
     }
 
-    // -------------------- mapări & helpers --------------------
-
-    /** Employee (cu EmployeeSkill) -> PlanningEmployee */
     private PlanningEmployee toPlanningEmployee(Employee e) {
         PlanningEmployee pe = new PlanningEmployee();
         pe.setEmployeeId(e.getId());
@@ -128,21 +126,19 @@ public class AssignmentService {
         return pe;
     }
 
-    /** Task -> PlanningTask (folosește predicted dacă există, altfel planned) */
     private PlanningTask toPlanningTask(Task t) {
         PlanningTask pt = new PlanningTask();
         pt.setTaskId(t.getId());
-        pt.setRequiredSkills(parseSkillsJson(t.getRequiredSkillsJson()));
+        //pt.setRequiredSkills(parseSkillsJson(t.getRequiredSkillsJson()));
         pt.setDifficulty(nvl(t.getDifficulty(), 3));
         Integer base = (t.getPredictedDurationMin() != null && t.getPredictedDurationMin() > 0)
                 ? t.getPredictedDurationMin() : t.getPlannedDurationMin();
         pt.setDurationMin(nvl(base, 60));
-        // pt.setDeadline(t.getDeadline());           // poate fi null
+        // pt.setDeadline(t.getDeadline());
         pt.setPriority(nvl(t.getPriority(), 3));
         return pt;
     }
 
-    /** Extrage nume de skill-uri din List<EmployeeSkill> de pe Employee. */
     private Set<String> extractSkillNames(Employee e) {
         if (e.getSkills() == null) return Set.of();
         return e.getSkills().stream()                  // List<EmployeeSkill>
@@ -153,7 +149,6 @@ public class AssignmentService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    /** Parsează JSON-ul ["Java","SQL"] din Task.requiredSkillsJson. */
     private Set<String> parseSkillsJson(String json) {
         if (json == null || json.isBlank()) return Set.of();
         try {
@@ -163,7 +158,6 @@ public class AssignmentService {
         }
     }
 
-    /** Zilele acoperite de concedii aprobate pentru un employee. */
     private Set<LocalDate> expandApprovedLeaveDays(Long employeeId) {
         List<LeaveRequest> intervals = leaveRepo.findApprovedForEmployee(employeeId);
         Set<LocalDate> days = new HashSet<>();
@@ -177,7 +171,6 @@ public class AssignmentService {
         return days;
     }
 
-    /** Media (clamped) a raportului planned/predicted vs actual pe ultimele N assignment-uri finalizate. */
     private double computeRecentSpeed(Long empId) {
         var last = assignmentRepo.findRecentFinished(empId, PageRequest.of(0, 10));
         if (last == null || last.isEmpty()) return 1.0;
@@ -199,7 +192,6 @@ public class AssignmentService {
         return Math.max(0.5, Math.min(1.5, avg)); // clamp
     }
 
-    /** Media (clamped) a notelor adminului (0..10) scalate la 0..1 pe ultimele N assignment-uri finalizate. */
     private double computeAvgQuality(Long empId) {
         var last = assignmentRepo.findRecentFinished(empId, PageRequest.of(0, 10));
         if (last == null || last.isEmpty()) return 0.8;

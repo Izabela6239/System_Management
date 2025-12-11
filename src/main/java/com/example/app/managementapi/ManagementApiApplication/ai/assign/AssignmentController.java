@@ -14,10 +14,6 @@ public class AssignmentController {
         this.service = service;
     }
 
-    /**
-     * Rulează solverul și întoarce sugestia fără să o persiste.
-     * Răspuns: { score: "...", taskToEmployee: { taskId: employeeId|null } }
-     */
     @PostMapping("/suggest")
     public Map<String, Object> suggest() {
         AssignmentSolution sol = service.suggest();
@@ -34,29 +30,18 @@ public class AssignmentController {
         );
     }
 
-    /**
-     * Primește un mapping { taskId: employeeId } și îl persistă (creează Assignment + setează Task.ASSIGNED).
-     * Returnează mappingul final, cu task-urile care chiar au fost persistate (null dacă a eșuat).
-     */
+
     @PostMapping("/commit")
     public Map<Long, Long> commit(@RequestBody Map<Long, Long> taskToEmployee) {
         if (taskToEmployee == null) return Map.of();
         return service.commit(taskToEmployee);
     }
 
-    /**
-     * Face suggest + commit într-un singur pas și întoarce un rezumat.
-     * Răspuns: { score, assignedCount, totalTasks, mapping }
-     */
     @PostMapping("/auto")
     public Map<String, Object> autoAssign() {
         return service.autoAssign();
     }
 
-    /**
-     * Endpoint de debug pentru un angajat: calculează aceiași indicatori pe care îi folosește solverul.
-     * Îți arată skills, zilele de concediu aprobate, recentSpeed și avgQuality.
-     */
     @GetMapping("/debug/employee/{employeeId}")
     public Map<String, Object> debugEmployee(@PathVariable Long employeeId) {
         var sol = service.suggest(); // îl folosim doar ca să reciclăm mapările interne

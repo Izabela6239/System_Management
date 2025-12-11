@@ -13,6 +13,9 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { EventInput } from "@fullcalendar/core";
 
 import "../assets/css/app-calendar.css"; // ajustează path-ul dacă e nevoie
+import "../assets/css/core.scss";
+import "../assets/css/demo.css";
+import "../assets/css/app-logistics-dashboard.css";
 
 import {
     getTasks,
@@ -35,25 +38,18 @@ type ModalType = "NONE" | "NEW_LEAVE" | "PROPOSE_CHANGE";
 
 const EmployeeDashboard: React.FC = () => {
     const [view, setView] = useState<View>("TASKS");
-
     const [tasks, setTasks] = useState<EmployeeTask[]>([]);
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-
     const [loading, setLoading] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-    // ───────────────────── Leave form state
     const [leaveStart, setLeaveStart] = useState("");
     const [leaveEnd, setLeaveEnd] = useState("");
     const [leaveReason, setLeaveReason] = useState("");
-
-    // ───────────────────── Proposal modal state
     const [modalType, setModalType] = useState<ModalType>("NONE");
     const [proposalTask, setProposalTask] = useState<EmployeeTask | null>(null);
     const [proposalDate, setProposalDate] = useState("");
     const [proposalTime, setProposalTime] = useState("");
 
-    // ========================= DATA LOADING =========================
     const loadAll = async () => {
         try {
             setLoading(true);
@@ -76,13 +72,13 @@ const EmployeeDashboard: React.FC = () => {
         loadAll();
     }, []);
 
-    // ========================= DERIVED STATS =========================
     const stats = useMemo(() => {
         const byStatus: Record<string, number> = {
-            NEW: 0,
-            PENDING: 0,
             IN_PROGRESS: 0,
-            COMPLETED: 0,
+            DONE: 0,
+            REJECTED: 0,
+            ACCEPTED: 0,
+            ASSIGNED: 0,
         };
 
         for (const t of tasks) {
@@ -108,13 +104,25 @@ const EmployeeDashboard: React.FC = () => {
         [tasks]
     );
 
-    // ========================= TASK ACTIONS =========================
     const reloadTasksOnly = async () => {
         try {
+            console.log("🔄 Reloading tasks...");
             const data = await getTasks();
+            console.log("📥 Tasks reloaded. Total tasks:", data.length);
+
+            // Log detaliat pentru fiecare task
+            data.forEach((task, index) => {
+                console.log(`📋 Task ${index + 1}:`, {
+                    id: task.id,
+                    title: task.title,
+                    status: task.status,
+                    hasStatusChanged: task.status === "DONE" ? "✅ CHANGED TO DONE" : "❌ NOT CHANGED"
+                });
+            });
+
             setTasks(data || []);
         } catch (err) {
-            console.error(err);
+            console.error("❌ Error reloading tasks:", err);
         }
     };
 
@@ -148,28 +156,42 @@ const EmployeeDashboard: React.FC = () => {
         }
     };
 
-    const handleHide = async (taskId: number) => {
-        try {
-            await hideTask(taskId);
-            await reloadTasksOnly();
-        } catch (err: any) {
-            alert(err.message || "Eroare la ascundere task.");
-        }
-    };
 
     const handleMarkCompleted = async (taskId: number) => {
+        if (!window.confirm("Ești sigur că vrei să marchezi acest task ca finalizat?")) return;
+
         try {
-            await updateTask(taskId, { status: "COMPLETED" });
+            console.log("🔄 STEP 1: Starting mark as completed for task:", taskId);
+            console.log("🔄 Current tasks before update:", tasks);
+
+            console.log("🔄 STEP 2: Calling updateTask API...");
+            await updateTask(taskId, { status: "DONE" });
+            console.log("✅ STEP 2: Backend update successful");
+
+            console.log("🔄 STEP 3: Reloading tasks...");
             await reloadTasksOnly();
+            console.log("✅ STEP 3: Tasks reloaded");
+
+            console.log("🔄 STEP 4: Current tasks after reload:", tasks);
+
+            alert("Task-ul a fost marcat ca finalizat!");
         } catch (err: any) {
+            console.error("❌ ERROR in handleMarkCompleted:", err);
             alert(err.message || "Eroare la marcarea ca finalizat.");
         }
     };
 
-    // ========================= PROPOSAL MODAL =========================
+    const handleStartTask = async (taskId: number) => {
+        try {
+            await updateTask(taskId, { status: "IN_PROGRESS" });
+            await reloadTasksOnly();
+        } catch (err: any) {
+            alert(err.message || "Eroare la pornirea task-ului.");
+        }
+    };
+
     const openProposalModal = (task: EmployeeTask) => {
         setProposalTask(task);
-        // dacă există deadline în format ISO, luăm doar data
         if (task.deadline) {
             const [d, t] = task.deadline.split("T");
             setProposalDate(d);
@@ -190,21 +212,29 @@ const EmployeeDashboard: React.FC = () => {
 
     const handleSendProposal = async () => {
         if (!proposalTask) return;
-        if (!proposalDate || !proposalTime) {
-            alert("Te rog alege data și ora propuse.");
+        if (!proposalDate) {
+            alert("Te rog alege data propusă.");
             return;
         }
 
         try {
-            await proposeTaskChange(proposalTask.id, proposalDate, proposalTime);
+            console.log("📤 Sending proposal:", {
+                taskId: proposalTask.id,
+                newDate: proposalDate  // Doar data
+            });
+
+            await proposeTaskChange(proposalTask.id, proposalDate);
             alert("Propunerea a fost trimisă.");
             closeModal();
+
+            // Reîncarcă task-urile
+            await reloadTasksOnly();
         } catch (err: any) {
+            console.error("❌ Error sending proposal:", err);
             alert(err.message || "Eroare la trimiterea propunerii.");
         }
     };
 
-    // ========================= LEAVE HANDLERS =========================
     const handleLeaveSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!leaveStart || !leaveEnd) {
@@ -228,29 +258,30 @@ const EmployeeDashboard: React.FC = () => {
         }
     };
 
-    // ========================= HELPERS =========================
     const statusBadge = (status: string) => {
         let cls = "badge bg-secondary";
         let label = status;
 
-        if (status === "NEW") {
+        if (status === "DONE") {
             cls = "badge bg-warning text-dark";
-            label = "Nou";
-        } else if (status === "PENDING") {
-            cls = "badge bg-info text-dark";
-            label = "În așteptare";
+            label = "DONE";
         } else if (status === "IN_PROGRESS") {
             cls = "badge bg-primary";
-            label = "În lucru";
-        } else if (status === "COMPLETED") {
+            label = "IN PROGRESS";
+        } else if (status === "ASSIGNED") {
             cls = "badge bg-success";
-            label = "Finalizat";
+            label = "ASSIGNED";
+        } else if (status === "ACCEPTED") {
+            cls = "badge bg-success";
+            label = "ACCEPTED";
+        } else if (status === "REJECTED") {
+            cls = "badge bg-danger";
+            label = "REJECTED";
         }
 
         return <span className={cls}>{label}</span>;
     };
 
-    // ========================= RENDER =========================
     return (
         <div className="container-xxl flex-grow-1 container-p-y">
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -296,44 +327,50 @@ const EmployeeDashboard: React.FC = () => {
                     {errorMsg}
                 </div>
             )}
-
             {/* KPI cards */}
             <div className="row mb-4">
-                <div className="col-md-3 col-sm-6 mb-3">
+                <div className="col-auto mb-3 flex-fill">
                     <div className="card h-100">
-                        <div className="card-body">
-                            <p className="text-muted mb-1">Noi</p>
-                            <h4 className="mb-0">{stats.NEW}</h4>
+                        <div className="card-body text-center">
+                            <p className="text-muted mb-1">Finalizat</p>
+                            <h4 className="mb-0">{stats.DONE}</h4>
                         </div>
                     </div>
                 </div>
-                <div className="col-md-3 col-sm-6 mb-3">
+                <div className="col-auto mb-3 flex-fill">
                     <div className="card h-100">
-                        <div className="card-body">
-                            <p className="text-muted mb-1">În așteptare</p>
-                            <h4 className="mb-0">{stats.PENDING}</h4>
-                        </div>
-                    </div>
-                </div>
-                <div className="col-md-3 col-sm-6 mb-3">
-                    <div className="card h-100">
-                        <div className="card-body">
+                        <div className="card-body text-center">
                             <p className="text-muted mb-1">În lucru</p>
                             <h4 className="mb-0">{stats.IN_PROGRESS}</h4>
                         </div>
                     </div>
                 </div>
-                <div className="col-md-3 col-sm-6 mb-3">
+                <div className="col-auto mb-3 flex-fill">
                     <div className="card h-100">
-                        <div className="card-body">
-                            <p className="text-muted mb-1">Finalizate</p>
-                            <h4 className="mb-0">{stats.COMPLETED}</h4>
+                        <div className="card-body text-center">
+                            <p className="text-muted mb-1">Acceptate</p>
+                            <h4 className="mb-0">{stats.ACCEPTED}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-auto mb-3 flex-fill">
+                    <div className="card h-100">
+                        <div className="card-body text-center">
+                            <p className="text-muted mb-1">Respins</p>
+                            <h4 className="mb-0">{stats.REJECTED}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-auto mb-3 flex-fill">
+                    <div className="card h-100">
+                        <div className="card-body text-center">
+                            <p className="text-muted mb-1">Asignat</p>
+                            <h4 className="mb-0">{stats.ASSIGNED || 0}</h4>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ==================== VIEW: TASKS ==================== */}
             {view === "TASKS" && (
                 <div className="card">
                     <div className="card-header">
@@ -374,8 +411,8 @@ const EmployeeDashboard: React.FC = () => {
                                                 <td>{t.priority ?? "—"}</td>
                                                 <td>{statusBadge(t.status)}</td>
                                                 <td>
-                                                    {/* similar cu logica PHP-ului tău */}
-                                                    {t.status === "NEW" && (
+
+                                                    {t.status === "ASSIGNED" && (
                                                         <>
                                                             <button
                                                                 className="btn btn-success btn-sm me-2"
@@ -389,12 +426,7 @@ const EmployeeDashboard: React.FC = () => {
                                                             >
                                                                 Respinge
                                                             </button>
-                                                            <button
-                                                                className="btn btn-outline-secondary btn-sm"
-                                                                onClick={() => handleHide(t.id)}
-                                                            >
-                                                                Ascunde
-                                                            </button>
+
                                                         </>
                                                     )}
 
@@ -420,16 +452,11 @@ const EmployeeDashboard: React.FC = () => {
                                                             </button>
                                                         </>
                                                     )}
-
-                                                    {t.status === "PENDING" && (
+                                                    {t.status === "ACCEPTED" && (
                                                         <>
                                                             <button
                                                                 className="btn btn-primary btn-sm me-2"
-                                                                onClick={() =>
-                                                                    updateTask(t.id, {
-                                                                        status: "IN_PROGRESS",
-                                                                    }).then(reloadTasksOnly)
-                                                                }
+                                                                onClick={() => handleStartTask(t.id)}
                                                             >
                                                                 Pornește
                                                             </button>
@@ -442,9 +469,10 @@ const EmployeeDashboard: React.FC = () => {
                                                         </>
                                                     )}
 
-                                                    {t.status === "COMPLETED" && (
+                                                    {( t.status === "DONE") && (
                                                         <span className="text-muted">—</span>
                                                     )}
+
                                                 </td>
                                             </tr>
                                         );
@@ -456,8 +484,6 @@ const EmployeeDashboard: React.FC = () => {
                     </div>
                 </div>
             )}
-
-            {/* ==================== VIEW: LEAVE ==================== */}
             {view === "LEAVE" && (
                 <div className="row">
                     <div className="col-lg-5 mb-4">
@@ -548,7 +574,6 @@ const EmployeeDashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* ==================== VIEW: CALENDAR ==================== */}
             {view === "CALENDAR" && (
                 <div className="card app-calendar-wrapper">
                     <div className="card-body">
@@ -567,24 +592,33 @@ const EmployeeDashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* ==================== PROPOSAL MODAL ==================== */}
             {modalType === "PROPOSE_CHANGE" && (
                 <div
-                    className="modal-backdrop show"
                     style={{
                         position: "fixed",
-                        inset: 0,
-                        backgroundColor: "rgba(0,0,0,.35)",
+                        top: 0,
+                        left: 0,
+                        width: "100vw",
+                        height: "100vh",
+                        backgroundColor: "rgba(0,0,0,0.35)",
+                        zIndex: 2000,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        zIndex: 1050,
                     }}
                     onClick={(e) => {
                         if (e.target === e.currentTarget) closeModal();
                     }}
                 >
-                    <div className="card" style={{ width: 420 }}>
+                    <div
+                        className="card"
+                        style={{
+                            width: 420,
+                            background: "white",
+                            zIndex: 2100,
+                            position: "relative",
+                        }}
+                    >
                         <div className="card-header d-flex justify-content-between align-items-center">
                             <h5 className="mb-0">Propune modificare</h5>
                             <button
@@ -596,6 +630,7 @@ const EmployeeDashboard: React.FC = () => {
                             </button>
                         </div>
                         <div className="card-body">
+                            
                             <div className="mb-3">
                                 <label className="form-label">Data nouă</label>
                                 <input

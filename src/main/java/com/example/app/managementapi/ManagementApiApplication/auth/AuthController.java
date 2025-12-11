@@ -1,8 +1,5 @@
 package com.example.app.managementapi.ManagementApiApplication.auth;
 
-import com.example.app.managementapi.ManagementApiApplication.dto.LoginRequestDTO;
-import com.example.app.managementapi.ManagementApiApplication.dto.LoginResponseDTO;
-import com.example.app.managementapi.ManagementApiApplication.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +19,6 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout() {
-        // frontend-ul va șterge token-ul din localStorage
         return ResponseEntity.ok("Logout successful");
     }
 }

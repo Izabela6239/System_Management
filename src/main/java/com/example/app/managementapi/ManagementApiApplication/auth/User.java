@@ -1,6 +1,5 @@
 package com.example.app.managementapi.ManagementApiApplication.auth;
 
-import com.example.app.managementapi.ManagementApiApplication.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,8 +35,8 @@ public class User implements UserDetails {
     private Boolean active = true;
 
 
-    private Long adminId;    // ID-ul din tabela admin
-    private Long employeeId; // ID-ul din tabela employee
+    private Long adminId;
+    private Long employeeId;
 
 
     public boolean isAdmin() {
@@ -47,7 +46,6 @@ public class User implements UserDetails {
     public boolean isEmployee() {
         return employeeId != null && role == UserRole.EMPLOYEE;
     }
-    //spring seucrity methods
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));

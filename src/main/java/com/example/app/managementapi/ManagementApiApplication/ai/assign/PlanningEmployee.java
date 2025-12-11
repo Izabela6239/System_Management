@@ -9,13 +9,13 @@ import java.util.Set;
 @Setter
 @Getter
 public class PlanningEmployee {
-    // getters / setters
+
     private Long employeeId;
     private Set<String> skills;
-    private int capacityMinPerDay; // ex: 480
-    private Set<LocalDate> leaves; // zile de concediu
-    private double recentSpeed;    // ~1.0 (1.0 = normal)
-    private double avgQuality;     // 0..1
+    private int capacityMinPerDay;
+    private Set<LocalDate> leaves;
+    private double recentSpeed;
+    private double avgQuality;
 
     public Long getEmployeeId() {
         return employeeId;

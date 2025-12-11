@@ -1,10 +1,6 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
-import Dashboard from "./pages/DashboardPage";
-import TasksPage from "./pages/TaskPage";
-import LeavePage from "./pages/LeavePage";
-import CreateLeavePage from "./pages/CreateLeavePage";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import RequireAuth from "./routes/RequireAuth";

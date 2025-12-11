@@ -20,7 +20,7 @@ public class JwtUtil {
     @Value("${jwt.secret:mySuperSecretKeyThatIsVeryLongAndSecureForJWTTokenGeneration}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours default
+    @Value("${jwt.expiration:86400000}")
     private Long expiration;
 
     private SecretKey getSigningKey() {
