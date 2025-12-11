@@ -137,6 +137,12 @@ export interface AdminNotification {
     type?: string;
     read: boolean;
     createdAt: string;
+    payload?: string;
+}
+
+export interface TaskPayload {
+    taskId: number;
+    status: string;
 }
 
 const base = "http://localhost:8080/admin";

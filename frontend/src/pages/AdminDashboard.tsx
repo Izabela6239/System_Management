@@ -36,7 +36,8 @@ import {
     MonthlyReport, getAssignmentsByTask, getAllMonthlyReports, updateTask,
     calculatePayroll,
     getPayrollHistory,
-    Payroll
+    Payroll,
+    TaskPayload,
 } from "../services/AdminService";
 
 import "../assets/css/core.scss";
@@ -1192,8 +1193,9 @@ export default function AdminDashboard() {
                         <a className="navbar-brand" href="#">
                             Platforma Admin
                         </a>
-                        <div className="d-flex align-items-center gap-2">
+                        <div className="d-flex align-items-center gap-2 position-relative">
                             <span className="text-muted small me-3">Admin Panel</span>
+
                             <button
                                 className="btn btn-outline-secondary btn-sm"
                                 onClick={() => {
@@ -1203,6 +1205,7 @@ export default function AdminDashboard() {
                             >
                                 Logout
                             </button>
+
                             <button
                                 onClick={() => {
                                     setShowNotifications(!showNotifications);
@@ -1229,16 +1232,17 @@ export default function AdminDashboard() {
                                             fontSize: "12px"
                                         }}
                                     >
-      {unreadCount}
-    </span>
+                {unreadCount}
+              </span>
                                 )}
                             </button>
+
                             {showNotifications && (
                                 <div
                                     style={{
                                         position: "absolute",
                                         top: "60px",
-                                        right: "20px",
+                                        right: "0",
                                         width: "350px",
                                         background: "#fff",
                                         border: "1px solid #ccc",
@@ -1247,39 +1251,59 @@ export default function AdminDashboard() {
                                         zIndex: 999
                                     }}
                                 >
-                                    <h4 style={{ padding: "10px", margin: 0 }}>Notificări</h4>
+                                    <h4 className="p-2 m-0 border-bottom">Notificări</h4>
 
-                                    {notifications.length === 0 && (
-                                        <p style={{ padding: "10px" }}>Nu există notificări.</p>
-                                    )}
+                                    {notifications.length === 0 ? (
+                                        <p className="p-2">Nu există notificări.</p>
+                                    ) : (
+                                        notifications.map((n) => {
+                                            let taskDetails: TaskPayload | null = null;
+                                            let detailMessage = "";
 
-                                    {notifications.map((n) => (
-                                        <div
-                                            key={n.id}
-                                            style={{
-                                                padding: "10px",
-                                                borderBottom: "1px solid #eee",
-                                                background: n.read ? "#f9f9f9" : "#e6f0ff"
-                                            }}
-                                        >
-                                            <p style={{ margin: 0 }}>{n.message}</p>
-                                            <small>{new Date(n.createdAt).toLocaleString()}</small>
+                                            if (n.payload) {
+                                                try {
+                                                    taskDetails = JSON.parse(n.payload) as TaskPayload;
+                                                    detailMessage = `Task ID: ${taskDetails.taskId}, Status: ${taskDetails.status}`;
+                                                } catch (e) {
+                                                    console.error("Failed to parse notification payload:", e);
+                                                }
+                                            }
 
-                                            {!n.read && (
-                                                <button
-                                                    onClick={() => handleMarkAsRead(n.id)}
+                                            return (
+                                                <div
+                                                    key={n.id}
+                                                    className="p-2 border-bottom"
                                                     style={{
-                                                        marginTop: "5px",
-                                                        fontSize: "12px",
-                                                        padding: "4px 8px",
-                                                        cursor: "pointer"
+                                                        background: n.read ? "#f9f9f9" : "#e6f0ff"
                                                     }}
                                                 >
-                                                    Marchează ca citit
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                                    <p
+                                                        className="m-0"
+                                                        style={{ fontWeight: n.read ? "normal" : "bold" }}
+                                                    >
+                                                        {n.message}
+                                                    </p>
+                                                    {taskDetails && (
+                                                        <small className="d-block text-secondary">
+                                                            {detailMessage}
+                                                        </small>
+                                                    )}
+                                                    <small className="d-block text-muted">
+                                                        {new Date(n.createdAt).toLocaleString()}
+                                                    </small>
+
+                                                    {!n.read && (
+                                                        <button
+                                                            onClick={() => handleMarkAsRead(n.id)}
+                                                            className="btn btn-sm btn-light mt-1"
+                                                        >
+                                                            Marchează ca citit
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
                                 </div>
                             )}
                         </div>
